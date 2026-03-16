@@ -1,52 +1,76 @@
+/**
+ * Columbia University Campus — drivable low-poly recreation
+ *
+ * Layout (top-down, +Z = south):
+ *
+ *   x: -75 ────────────────────────────── x: 75
+ *   z:-60  [Pupin]──────── [Low Library] ────── [Hamilton]
+ *          Amsterdam Ave   Central Path     Jerome Greene
+ *   z:-25  ────── [College Walk / 116th St] ──────────
+ *   z: 25  [Lerner]────────[South Field]──────── [Dodge]
+ *   z: 60  ──────── [Butler Library] ────────────────
+ *
+ * Zones:
+ *   Home     → Low Library  (central dome, iconic steps)
+ *   Projects → Butler Library (south, pillared façade)
+ *   Skills   → Pupin Hall   (northwest, tall physics tower)
+ *   Sports   → Dodge Gym    (east, sports/culture + DR flag)
+ *   Contact  → Lerner Hall  (west-central, modern glass)
+ */
+
 import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import * as THREE from 'three';
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 
-/* ── Zone definitions ──────────────────────────────────────── */
+/* ── Zone definitions ─────────────────────────────────────── */
 export const ZONES = [
-  { id: 'home',     label: 'Home',     icon: '🏠', color: '#f4a261', pos: [0,   0, 0]   },
-  { id: 'projects', label: 'Projects', icon: '💻', color: '#9b5de5', pos: [55,  0, 0]   },
-  { id: 'skills',   label: 'Skills',   icon: '⚡', color: '#06d6a0', pos: [-55, 0, 0]   },
-  { id: 'sports',   label: 'Sports',   icon: '🏀', color: '#ef476f', pos: [0,   0, -55] },
-  { id: 'contact',  label: 'Contact',  icon: '📡', color: '#118ab2', pos: [0,   0, 55]  },
+  { id: 'home',     label: 'Low Library',   icon: '🏛️', color: '#f4a261', pos: [0,    0, -22] },
+  { id: 'projects', label: 'Butler Library',icon: '📚', color: '#9b5de5', pos: [0,    0,  62] },
+  { id: 'skills',   label: 'Pupin Hall',    icon: '⚡', color: '#06d6a0', pos: [-58,  0, -28] },
+  { id: 'sports',   label: 'Dodge / Field', icon: '🏀', color: '#ef476f', pos: [58,   0,  18] },
+  { id: 'contact',  label: 'Lerner Hall',   icon: '📡', color: '#118ab2', pos: [-42,  0,  22] },
 ];
 
-export const ZONE_RADIUS = 18;
+export const ZONE_RADIUS = 20;
 
-/* ── Material palette ──────────────────────────────────────── */
-// Bruno Simon uses flat, matte colors — NO metalness, low roughness on nothing
-const M = (color, opts = {}) =>
-  new THREE.MeshLambertMaterial({ color, ...opts });
+/* ── Campus colour palette ────────────────────────────────── */
+const COL_BRICK       = '#9e3a1a';   // Columbia brick red
+const COL_BRICK_DARK  = '#7a2c12';
+const COL_STONE       = '#d4c8b0';   // cream limestone trim
+const COL_STONE_DARK  = '#b0a490';
+const COL_DOME        = '#4a7c3a';   // verdigris green dome
+const COL_ROOF        = '#3d5c2a';   // darker roof
+const COL_GRASS       = '#4a7c3a';
+const COL_QUAD        = '#5a8c45';
+const COL_PATH        = '#c8b48a';   // stone walkway
+const COL_ROAD        = '#6a6a58';
+const COL_SKY         = '#87ceeb';
 
-// Ground & roads
-const GND_MAT     = M('#3d7a3a');          // bright grass green
-const ROAD_MAT    = M('#5a5a4a');          // warm asphalt
-const SIDEWALK_MAT = M('#a89f8c');         // light beige pavement
-const DASH_MAT    = M('#ffd166');          // warm yellow dashes
+const ROT90 = new THREE.Euler(-Math.PI / 2, 0, 0);
 
-// Zone platform colors
-const ZONE_BASE_MATS = {
-  home:     M('#f4a261'),
-  projects: M('#9b5de5'),
-  skills:   M('#06d6a0'),
-  sports:   M('#ef476f'),
-  contact:  M('#118ab2'),
-};
+/* ── Reusable geometry / material (module-level) ─────────────*/
+const PATH_MAT    = new THREE.MeshLambertMaterial({ color: COL_PATH });
+const ROAD_MAT    = new THREE.MeshLambertMaterial({ color: COL_ROAD });
+const GRASS_MAT   = new THREE.MeshLambertMaterial({ color: COL_GRASS });
+const QUAD_MAT    = new THREE.MeshLambertMaterial({ color: COL_QUAD });
+const STONE_MAT   = new THREE.MeshLambertMaterial({ color: COL_STONE });
+const STONE_D_MAT = new THREE.MeshLambertMaterial({ color: COL_STONE_DARK });
+const BRICK_MAT   = new THREE.MeshLambertMaterial({ color: COL_BRICK });
+const BRICK_D_MAT = new THREE.MeshLambertMaterial({ color: COL_BRICK_DARK });
+const DOME_MAT    = new THREE.MeshLambertMaterial({ color: COL_DOME });
+const ROOF_MAT    = new THREE.MeshLambertMaterial({ color: COL_ROOF });
+const TRUNK_MAT   = new THREE.MeshLambertMaterial({ color: '#5c3d1a' });
+const TREE_MATS   = [
+  new THREE.MeshLambertMaterial({ color: '#2d6a30' }),
+  new THREE.MeshLambertMaterial({ color: '#3a7a35' }),
+  new THREE.MeshLambertMaterial({ color: '#254f28' }),
+];
 
-// Shared geometry (created once at module level)
-const ROT_X_NEG90  = new THREE.Euler(-Math.PI / 2, 0, 0);
-const PLAT_GEO     = new THREE.CylinderGeometry(14, 15, 0.6, 20);
-const RING_GEO     = new THREE.RingGeometry(14.5, 15.8, 36);
-const H_DASH_GEO   = new THREE.PlaneGeometry(5, 0.28);
-const V_DASH_GEO   = new THREE.PlaneGeometry(0.28, 5);
-const ROAD_GEO_EW  = new THREE.PlaneGeometry(240, 10);
-const ROAD_GEO_NS  = new THREE.PlaneGeometry(10, 240);
-const TRUNK_GEO    = new THREE.CylinderGeometry(0.22, 0.32, 2.4, 7);
-const CONE_GEO_LG  = new THREE.ConeGeometry(2.0, 3.8, 8);
-const CONE_GEO_SM  = new THREE.ConeGeometry(1.4, 2.4, 8);
-const TRUNK_MAT    = M('#7c5c3e');
-const TREE_MATS    = [M('#2d6a30'), M('#3a7a35'), M('#254f28')];
+// Shared geometries
+const TRUNK_GEO   = new THREE.CylinderGeometry(0.22, 0.32, 2.4, 7);
+const CONE_LG     = new THREE.ConeGeometry(2.2, 4.0, 9);
+const CONE_SM     = new THREE.ConeGeometry(1.5, 2.6, 9);
 
 /* ══════════════════════════════════════════════════════════
    WORLD ROOT
@@ -54,129 +78,712 @@ const TREE_MATS    = [M('#2d6a30'), M('#3a7a35'), M('#254f28')];
 export default function World() {
   return (
     <group>
-      {/* Physics ground — explicit cuboid (plane = zero-thickness = car falls through) */}
+      {/* Physics ground — explicit cuboid collider (plane = 0 thickness = falls through) */}
       <RigidBody type="fixed" colliders={false}>
         <CuboidCollider args={[150, 0.5, 150]} position={[0, -0.55, 0]} />
-        <mesh receiveShadow rotation={ROT_X_NEG90}>
+        <mesh receiveShadow rotation={ROT90}>
           <planeGeometry args={[400, 400]} />
-          <meshLambertMaterial color="#3d7a3a" />
+          <meshLambertMaterial color={COL_GRASS} />
         </mesh>
       </RigidBody>
 
-      {/* Subtle tile pattern on ground */}
-      <TileGrid />
+      {/* Campus ground zones (quads, paths) */}
+      <CampusGround />
 
-      {/* Roads */}
+      {/* Road / path network */}
       <Roads />
 
-      {/* Invisible border walls */}
+      {/* Invisible walls */}
       <Borders />
 
-      {/* Zone islands */}
-      <HomeZone    position={ZONES[0].pos} />
-      <ProjectsZone position={ZONES[1].pos} />
-      <SkillsZone  position={ZONES[2].pos} />
-      <SportsZone  position={ZONES[3].pos} />
-      <ContactZone position={ZONES[4].pos} />
+      {/* Zone buildings */}
+      <LowLibrary    position={ZONES[0].pos} />
+      <ButlerLibrary position={ZONES[1].pos} />
+      <PupinHall     position={ZONES[2].pos} />
+      <DodgeCenter   position={ZONES[3].pos} />
+      <LernerHall    position={ZONES[4].pos} />
 
-      {/* Decorative */}
-      <Trees />
+      {/* Side campus buildings (filler, non-zone) */}
+      <SideCampus />
+
+      {/* Trees along walkways */}
+      <CampusTrees />
+
+      {/* Lampposts */}
       <Lampposts />
 
-      {/* ── LIGHTING — Bruno Simon style: strong sun + fill ── */}
-
-      {/* Strong warm sun from upper-right — main light source */}
+      {/* ── Columbia-appropriate lighting ─── */}
+      {/* Strong warm midday sun from upper southwest */}
       <directionalLight
-        position={[80, 120, 60]}
-        intensity={2.8}
+        position={[60, 110, 50]}
+        intensity={2.6}
         color="#fff8e8"
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
         shadow-camera-far={280}
         shadow-camera-left={-100}
         shadow-camera-right={100}
         shadow-camera-top={100}
         shadow-camera-bottom={-100}
-        shadow-bias={-0.0002}
+        shadow-bias={-0.0003}
       />
-
-      {/* Sky fill — bright blue from above */}
-      <hemisphereLight skyColor="#87ceeb" groundColor="#3d7a3a" intensity={1.2} />
-
-      {/* Soft ambient so shadows aren't pitch black */}
-      <ambientLight intensity={0.5} color="#fff5e0" />
-
-      {/* Each zone emits its own colored fill light */}
-      <pointLight position={[0,   8, 0]}   color="#f4a261" intensity={2} distance={35} />
-      <pointLight position={[55,  8, 0]}   color="#9b5de5" intensity={2} distance={35} />
-      <pointLight position={[-55, 8, 0]}   color="#06d6a0" intensity={2} distance={35} />
-      <pointLight position={[0,   8, -55]} color="#ef476f" intensity={2} distance={35} />
-      <pointLight position={[0,   8, 55]}  color="#118ab2" intensity={2} distance={35} />
+      {/* Sky fill */}
+      <hemisphereLight skyColor="#87ceeb" groundColor={COL_GRASS} intensity={1.1} />
+      {/* Ambient so shadow sides aren't pitch black */}
+      <ambientLight intensity={0.55} color="#fff5e0" />
     </group>
   );
 }
 
-/* ── Subtle ground tile grid ───────────────────────────────── */
-function TileGrid() {
-  const geo = useMemo(() => {
-    const g = new THREE.BufferGeometry();
-    const v = [];
-    const s = 200, div = 40, step = s / div, half = s / 2;
-    for (let i = 0; i <= div; i++) {
-      const p = -half + i * step;
-      v.push(-half, 0, p, half, 0, p);
-      v.push(p, 0, -half, p, 0, half);
-    }
-    g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
-    return g;
-  }, []);
+/* ── Campus ground layers ──────────────────────────────────── */
+function CampusGround() {
   return (
-    <lineSegments geometry={geo} position={[0, 0.03, 0]}>
-      <lineBasicMaterial color="#2a5c28" transparent opacity={0.4} />
-    </lineSegments>
+    <group>
+      {/* Main campus platform (slightly raised above grass) */}
+      <mesh receiveShadow rotation={ROT90} position={[0, 0.01, 0]}>
+        <planeGeometry args={[160, 160]} />
+        <meshLambertMaterial color="#c2b49c" />
+      </mesh>
+
+      {/* South Field quad — the large grass rectangle */}
+      <mesh receiveShadow rotation={ROT90} position={[0, 0.04, 20]}>
+        <planeGeometry args={[60, 60]} />
+        <meshLambertMaterial color={COL_QUAD} />
+      </mesh>
+
+      {/* North quad around Low Library */}
+      <mesh receiveShadow rotation={ROT90} position={[0, 0.04, -22]}>
+        <planeGeometry args={[50, 30]} />
+        <meshLambertMaterial color={COL_QUAD} />
+      </mesh>
+
+      {/* College Walk stone surface */}
+      <mesh receiveShadow rotation={ROT90} position={[0, 0.05, -4]}>
+        <planeGeometry args={[130, 18]} />
+        <meshLambertMaterial color="#d4c8b0" />
+      </mesh>
+
+      {/* Diagonal paths from Low steps to College Walk */}
+      {[-14, 14].map((x, i) => (
+        <mesh key={i} receiveShadow rotation={ROT90} position={[x * 0.5, 0.06, -10]}>
+          <planeGeometry args={[5, 20]} />
+          <meshLambertMaterial color="#c8bca8" />
+        </mesh>
+      ))}
+
+      {/* Central N-S axis path */}
+      <mesh receiveShadow rotation={ROT90} position={[0, 0.06, 20]}>
+        <planeGeometry args={[8, 85]} />
+        <meshLambertMaterial color="#c8bca8" />
+      </mesh>
+    </group>
   );
 }
 
-/* ── Roads ─────────────────────────────────────────────────── */
+/* ── Roads (Amsterdam Ave, Broadway, 116th) ────────────────── */
 function Roads() {
   const hDashes = useMemo(() =>
-    Array.from({ length: 24 }, (_, j) => [-110 + j * 10, 0.04, 0]), []);
-  const vDashes = useMemo(() =>
-    Array.from({ length: 24 }, (_, j) => [0, 0.04, -110 + j * 10]), []);
+    Array.from({ length: 18 }, (_, j) => [-82 + j * 10, 0.08, -4]), []);
+  const vDashesW = useMemo(() =>
+    Array.from({ length: 16 }, (_, j) => [-68, 0.08, -75 + j * 10]), []);
+  const vDashesE = useMemo(() =>
+    Array.from({ length: 16 }, (_, j) => [68, 0.08, -75 + j * 10]), []);
 
   return (
     <group>
-      {/* Sidewalk border — slightly wider & lighter */}
-      <mesh receiveShadow geometry={new THREE.PlaneGeometry(246, 14)}
-        material={SIDEWALK_MAT} rotation={ROT_X_NEG90} position={[0, 0.01, 0]} />
-      <mesh receiveShadow geometry={new THREE.PlaneGeometry(14, 246)}
-        material={SIDEWALK_MAT} rotation={ROT_X_NEG90} position={[0, 0.01, 0]} />
-
-      {/* Road surface */}
-      <mesh receiveShadow geometry={ROAD_GEO_EW} material={ROAD_MAT}
-        rotation={ROT_X_NEG90} position={[0, 0.02, 0]} />
-      <mesh receiveShadow geometry={ROAD_GEO_NS} material={ROAD_MAT}
-        rotation={ROT_X_NEG90} position={[0, 0.02, 0]} />
-
-      {/* Yellow dashes */}
+      {/* Amsterdam Ave — west */}
+      <mesh receiveShadow rotation={ROT90} position={[-68, 0.02, 0]}>
+        <planeGeometry args={[12, 200]} />
+        <meshLambertMaterial color={COL_ROAD} />
+      </mesh>
+      {/* Broadway — east */}
+      <mesh receiveShadow rotation={ROT90} position={[68, 0.02, 0]}>
+        <planeGeometry args={[12, 200]} />
+        <meshLambertMaterial color={COL_ROAD} />
+      </mesh>
+      {/* 116th St — main entrance road */}
+      <mesh receiveShadow rotation={ROT90} position={[0, 0.02, 72]}>
+        <planeGeometry args={[200, 12]} />
+        <meshLambertMaterial color={COL_ROAD} />
+      </mesh>
+      {/* 120th St — north boundary */}
+      <mesh receiveShadow rotation={ROT90} position={[0, 0.02, -72]}>
+        <planeGeometry args={[200, 12]} />
+        <meshLambertMaterial color={COL_ROAD} />
+      </mesh>
+      {/* Dashes on 116th */}
       {hDashes.map((pos, j) => (
-        <mesh key={j} geometry={H_DASH_GEO} material={DASH_MAT}
-          rotation={ROT_X_NEG90} position={pos} />
+        <mesh key={j} rotation={ROT90} position={[pos[0], 0.09, 72]}>
+          <planeGeometry args={[5, 0.3]} />
+          <meshBasicMaterial color="#ffd166" />
+        </mesh>
       ))}
-      {vDashes.map((pos, j) => (
-        <mesh key={j} geometry={V_DASH_GEO} material={DASH_MAT}
-          rotation={ROT_X_NEG90} position={pos} />
+      {/* Dashes on Amsterdam */}
+      {vDashesW.map((pos, j) => (
+        <mesh key={j} rotation={ROT90} position={[-68, 0.09, pos[2]]}>
+          <planeGeometry args={[0.3, 5]} />
+          <meshBasicMaterial color="#ffd166" />
+        </mesh>
+      ))}
+      {/* Dashes on Broadway */}
+      {vDashesE.map((pos, j) => (
+        <mesh key={j} rotation={ROT90} position={[68, 0.09, pos[2]]}>
+          <planeGeometry args={[0.3, 5]} />
+          <meshBasicMaterial color="#ffd166" />
+        </mesh>
       ))}
     </group>
   );
 }
 
-/* ── Zone platform helper ──────────────────────────────────── */
-function ZonePlatform({ id }) {
+/* ════════════════════════════════════════════════════════════
+   LOW LIBRARY — Home zone
+   Iconic neoclassical dome building, wide steps, 8 columns
+═════════════════════════════════════════════════════════════*/
+function LowLibrary({ position }) {
+  const glowRef = useRef();
+  useFrame(({ clock }) => {
+    if (glowRef.current)
+      glowRef.current.intensity = 1.8 + Math.sin(clock.elapsedTime * 1.2) * 0.4;
+  });
+
   return (
-    <mesh geometry={PLAT_GEO} material={ZONE_BASE_MATS[id]}
-      receiveShadow position={[0, 0.3, 0]} castShadow />
+    <group position={position}>
+      {/* Zone proximity ring */}
+      <ZoneRing color="#f4a261" />
+
+      {/* Wide stone base / podium */}
+      <mesh castShadow receiveShadow position={[0, 0.5, 0]}>
+        <boxGeometry args={[28, 1, 22]} />
+        <meshLambertMaterial color={COL_STONE_DARK} />
+      </mesh>
+
+      {/* Step cascade (3 tiers) */}
+      {[0, 1, 2].map(i => (
+        <mesh key={i} castShadow receiveShadow
+          position={[0, i * 0.4 + 0.2, 9 - i * 1.5]}>
+          <boxGeometry args={[26 - i * 2, 0.4, 3.5]} />
+          <meshLambertMaterial color={COL_STONE} />
+        </mesh>
+      ))}
+
+      {/* Main building body */}
+      <mesh castShadow receiveShadow position={[0, 5, -1]}>
+        <boxGeometry args={[24, 10, 18]} />
+        <meshLambertMaterial color={COL_STONE} />
+      </mesh>
+
+      {/* Columns across the front face (8 columns) */}
+      {Array.from({ length: 8 }, (_, i) => (
+        <mesh key={i} castShadow
+          position={[-12 + i * 3.44, 5.5, 8.1]}>
+          <cylinderGeometry args={[0.42, 0.5, 10, 10]} />
+          <meshLambertMaterial color="#e0d4bc" />
+        </mesh>
+      ))}
+
+      {/* Pediment / triangular gable */}
+      <mesh castShadow position={[0, 11.5, 8]}>
+        <boxGeometry args={[24, 0.5, 1.5]} />
+        <meshLambertMaterial color={COL_STONE} />
+      </mesh>
+      <mesh castShadow position={[0, 13.5, 8]} rotation={[0, Math.PI / 4, 0]}>
+        <coneGeometry args={[12.5, 4, 4]} />
+        <meshLambertMaterial color={COL_STONE} />
+      </mesh>
+
+      {/* Drum (cylinder below dome) */}
+      <mesh castShadow position={[0, 14, -2]}>
+        <cylinderGeometry args={[6, 6.5, 5, 16]} />
+        <meshLambertMaterial color={COL_STONE} />
+      </mesh>
+
+      {/* THE DOME — iconic verdigris green */}
+      <mesh castShadow position={[0, 18, -2]}>
+        <sphereGeometry args={[6.2, 24, 12, 0, Math.PI * 2, 0, Math.PI / 1.9]} />
+        <meshLambertMaterial color={COL_DOME} />
+      </mesh>
+
+      {/* Lantern on dome */}
+      <mesh castShadow position={[0, 23.5, -2]}>
+        <cylinderGeometry args={[1.1, 1.3, 2.5, 12]} />
+        <meshLambertMaterial color={COL_STONE} />
+      </mesh>
+      <mesh castShadow position={[0, 25.5, -2]}>
+        <sphereGeometry args={[1.1, 10, 10, 0, Math.PI * 2, 0, Math.PI / 1.8]} />
+        <meshLambertMaterial color={COL_DOME} />
+      </mesh>
+
+      {/* Columbia "C" flag pole */}
+      <mesh castShadow position={[11, 5, 8.5]}>
+        <cylinderGeometry args={[0.1, 0.1, 8, 6]} />
+        <meshLambertMaterial color="#aaaaaa" />
+      </mesh>
+      <mesh position={[12.4, 8, 8.5]}>
+        <planeGeometry args={[2.6, 1.4]} />
+        <meshBasicMaterial color="#003087" side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[12.4, 8, 8.52]}>
+        <planeGeometry args={[2.6, 0.22]} />
+        <meshBasicMaterial color="#ffffff" side={THREE.DoubleSide} />
+      </mesh>
+
+      {/* Glow light under dome */}
+      <pointLight ref={glowRef} position={[0, 20, -2]} color="#f4a261" intensity={2} distance={35} />
+    </group>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   BUTLER LIBRARY — Projects zone
+   Large neoclassical building, pillared facade, engraved names
+═════════════════════════════════════════════════════════════*/
+function ButlerLibrary({ position }) {
+  return (
+    <group position={position}>
+      <ZoneRing color="#9b5de5" />
+
+      {/* Stone steps (wider, shallower than Low) */}
+      {[0, 1].map(i => (
+        <mesh key={i} castShadow receiveShadow
+          position={[0, i * 0.35 + 0.18, -12.5 + i * 1.4]}>
+          <boxGeometry args={[44 - i * 2, 0.35, 4]} />
+          <meshLambertMaterial color={COL_STONE} />
+        </mesh>
+      ))}
+
+      {/* Main body */}
+      <mesh castShadow receiveShadow position={[0, 7, 0]}>
+        <boxGeometry args={[42, 14, 20]} />
+        <meshLambertMaterial color={COL_STONE} />
+      </mesh>
+
+      {/* Darker base band */}
+      <mesh castShadow receiveShadow position={[0, 1.2, 0]}>
+        <boxGeometry args={[42.5, 2.4, 20.5]} />
+        <meshLambertMaterial color={COL_STONE_DARK} />
+      </mesh>
+
+      {/* 12 columns across front facade */}
+      {Array.from({ length: 12 }, (_, i) => (
+        <mesh key={i} castShadow
+          position={[-22 + i * 4, 7, -10.1]}>
+          <cylinderGeometry args={[0.48, 0.56, 13.5, 10]} />
+          <meshLambertMaterial color="#ddd0b8" />
+        </mesh>
+      ))}
+
+      {/* Entablature (horizontal band above columns) */}
+      <mesh castShadow position={[0, 14.8, -10]}>
+        <boxGeometry args={[43, 1.2, 1.5]} />
+        <meshLambertMaterial color={COL_STONE} />
+      </mesh>
+
+      {/* Parapet / flat roof top */}
+      <mesh castShadow position={[0, 15.4, 0]}>
+        <boxGeometry args={[43, 0.8, 21]} />
+        <meshLambertMaterial color={COL_STONE_DARK} />
+      </mesh>
+
+      {/* "BUTLER LIBRARY" name band (bright panel) */}
+      <mesh position={[0, 11.5, -10.2]}>
+        <planeGeometry args={[36, 2.2]} />
+        <meshBasicMaterial color="#e8dcc8" />
+      </mesh>
+
+      {/* Wing extensions */}
+      {[-22, 22].map((x, i) => (
+        <mesh key={i} castShadow receiveShadow position={[x, 5.5, 3]}>
+          <boxGeometry args={[3, 11, 8]} />
+          <meshLambertMaterial color={COL_STONE_DARK} />
+        </mesh>
+      ))}
+
+      <pointLight position={[0, 14, 0]} color="#c77dff" intensity={2.5} distance={35} />
+    </group>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   PUPIN HALL — Skills zone
+   Tall brick tower (17 floors real life, scaled), physics dept
+═════════════════════════════════════════════════════════════*/
+function PupinHall({ position }) {
+  return (
+    <group position={position}>
+      <ZoneRing color="#06d6a0" />
+
+      {/* Wide base/podium */}
+      <mesh castShadow receiveShadow position={[0, 1, 0]}>
+        <boxGeometry args={[24, 2, 18]} />
+        <meshLambertMaterial color={COL_STONE} />
+      </mesh>
+
+      {/* Main brick tower */}
+      <mesh castShadow receiveShadow position={[0, 11, 0]}>
+        <boxGeometry args={[20, 22, 16]} />
+        <meshLambertMaterial color={COL_BRICK} />
+      </mesh>
+
+      {/* Stone window surrounds (horizontal bands every 3 floors) */}
+      {[3, 7, 11, 15, 19].map((y, i) => (
+        <mesh key={i} castShadow position={[0, y, -8.1]}>
+          <boxGeometry args={[20, 0.5, 0.2]} />
+          <meshLambertMaterial color={COL_STONE} />
+        </mesh>
+      ))}
+
+      {/* Window columns (vertical stone pilasters) */}
+      {[-8, -4, 0, 4, 8].map((x, i) => (
+        <mesh key={i} castShadow position={[x, 11, -8.08]}>
+          <boxGeometry args={[0.6, 22, 0.15]} />
+          <meshLambertMaterial color={COL_STONE_DARK} />
+        </mesh>
+      ))}
+
+      {/* Windows — glowing */}
+      {[4, 7, 10, 13, 16, 19].map((y, row) =>
+        [-6, -2, 2, 6].map((x, col) => (
+          <mesh key={`${row}-${col}`} position={[x, y, -8.08]}>
+            <boxGeometry args={[1.4, 1.8, 0.05]} />
+            <meshBasicMaterial color={row % 2 === 0 ? '#d4e8ff' : '#c8d8f0'} />
+          </mesh>
+        ))
+      )}
+
+      {/* Tower top / cornice */}
+      <mesh castShadow position={[0, 22.8, 0]}>
+        <boxGeometry args={[21, 1.2, 17]} />
+        <meshLambertMaterial color={COL_STONE} />
+      </mesh>
+      {/* Setback upper section */}
+      <mesh castShadow position={[0, 28, 0]}>
+        <boxGeometry args={[14, 10, 12]} />
+        <meshLambertMaterial color={COL_BRICK_DARK} />
+      </mesh>
+      <mesh castShadow position={[0, 33.5, 0]}>
+        <boxGeometry args={[14.5, 0.8, 12.5]} />
+        <meshLambertMaterial color={COL_STONE} />
+      </mesh>
+
+      {/* Antenna / flagpole */}
+      <mesh castShadow position={[0, 37, 0]}>
+        <cylinderGeometry args={[0.12, 0.12, 5, 6]} />
+        <meshLambertMaterial color="#aaaaaa" />
+      </mesh>
+      <mesh position={[0, 39.8, 0]}>
+        <sphereGeometry args={[0.25, 8, 8]} />
+        <meshBasicMaterial color="#06d6a0" />
+      </mesh>
+      <pointLight position={[0, 38, 0]} color="#06d6a0" intensity={3} distance={20} />
+
+      {/* Skill label signs on the side */}
+      {['Python', 'Spark', 'ML', 'AWS', 'dbt'].map((label, i) => (
+        <mesh key={i} position={[10.1, 4 + i * 3.8, 0]}>
+          <boxGeometry args={[0.1, 2.2, 5]} />
+          <meshBasicMaterial color={['#06d6a0','#48cae4','#0077b6','#90e0ef','#48cae4'][i]} />
+        </mesh>
+      ))}
+
+      <pointLight position={[0, 16, 0]} color="#06d6a0" intensity={2.5} distance={32} />
+    </group>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   DODGE CENTER — Sports zone
+   Gym + basketball court + cultural corner (DR flag, sports)
+═════════════════════════════════════════════════════════════*/
+function DodgeCenter({ position }) {
+  const rimGlowRef = useRef();
+  useFrame(({ clock }) => {
+    if (rimGlowRef.current)
+      rimGlowRef.current.intensity = 1.5 + Math.sin(clock.elapsedTime * 2) * 0.8;
+  });
+
+  return (
+    <group position={position}>
+      <ZoneRing color="#ef476f" />
+
+      {/* Main Dodge building */}
+      <mesh castShadow receiveShadow position={[0, 5, 0]}>
+        <boxGeometry args={[28, 10, 20]} />
+        <meshLambertMaterial color={COL_BRICK} />
+      </mesh>
+      {/* Stone base band */}
+      <mesh castShadow receiveShadow position={[0, 1, 0]}>
+        <boxGeometry args={[28.5, 2, 20.5]} />
+        <meshLambertMaterial color={COL_STONE_DARK} />
+      </mesh>
+      {/* Entry arch */}
+      <mesh castShadow position={[0, 5, -10.1]}>
+        <boxGeometry args={[6, 8, 0.5]} />
+        <meshLambertMaterial color={COL_STONE} />
+      </mesh>
+      <mesh castShadow position={[0, 9.5, -10.1]}>
+        <cylinderGeometry args={[3, 3, 0.5, 16, 1, false, 0, Math.PI]} />
+        <meshLambertMaterial color={COL_STONE} />
+      </mesh>
+      {/* Roof parapet */}
+      <mesh castShadow position={[0, 10.8, 0]}>
+        <boxGeometry args={[29, 1.2, 21]} />
+        <meshLambertMaterial color={COL_STONE_DARK} />
+      </mesh>
+
+      {/* Outdoor basketball court on east side */}
+      <group position={[22, 0, 0]}>
+        {/* Court surface */}
+        <mesh receiveShadow rotation={ROT90} position={[0, 0.04, 0]}>
+          <planeGeometry args={[26, 18]} />
+          <meshLambertMaterial color="#c8792a" />
+        </mesh>
+        {/* Court border */}
+        <mesh receiveShadow rotation={ROT90} position={[0, 0.03, 0]}>
+          <planeGeometry args={[28, 20]} />
+          <meshLambertMaterial color="#8a5214" />
+        </mesh>
+        {/* Center circle */}
+        <mesh rotation={ROT90} position={[0, 0.06, 0]}>
+          <ringGeometry args={[3.4, 3.55, 28]} />
+          <meshBasicMaterial color="#ffffff" />
+        </mesh>
+        {/* Half-court line */}
+        <mesh rotation={ROT90} position={[0, 0.06, 0]}>
+          <planeGeometry args={[0.14, 18]} />
+          <meshBasicMaterial color="#ffffff" />
+        </mesh>
+        {/* Hoops */}
+        {[-12, 12].map((x, i) => (
+          <group key={i} position={[x, 0, 0]}>
+            <mesh castShadow position={[0, 3.5, 0]}>
+              <cylinderGeometry args={[0.14, 0.16, 7, 8]} />
+              <meshLambertMaterial color="#888888" />
+            </mesh>
+            <mesh castShadow position={[i === 0 ? 0.9 : -0.9, 6, 0]}>
+              <boxGeometry args={[0.12, 2, 3]} />
+              <meshLambertMaterial color="#d8e8ff" />
+            </mesh>
+            <mesh position={[i === 0 ? 1.6 : -1.6, 5, 0]}
+              rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[0.46, 0.06, 8, 16]} />
+              <meshBasicMaterial color="#ff6a00" />
+            </mesh>
+          </group>
+        ))}
+        {/* Stadium lights */}
+        {[[-11,-8],[11,-8],[-11,8],[11,8]].map(([x,z],i)=>(
+          <group key={i} position={[x,0,z]}>
+            <mesh castShadow position={[0,6,0]}>
+              <cylinderGeometry args={[0.15,0.2,12,6]} />
+              <meshLambertMaterial color="#777777" />
+            </mesh>
+            <mesh position={[0,12.6,0]}>
+              <boxGeometry args={[2,0.5,0.8]} />
+              <meshBasicMaterial color="#fffde0" />
+            </mesh>
+            <pointLight position={[0,13,0]} color="#fffce0" intensity={3.5} distance={25} castShadow={false} />
+          </group>
+        ))}
+      </group>
+
+      {/* Dominican Republic flag pole + flag */}
+      <group position={[-16, 0, -8]}>
+        <mesh castShadow position={[0, 6, 0]}>
+          <cylinderGeometry args={[0.12, 0.15, 12, 6]} />
+          <meshLambertMaterial color="#aaaaaa" />
+        </mesh>
+        {/* DR Flag */}
+        <DominicanFlag y={10.5} />
+      </group>
+
+      {/* Baseball corner */}
+      <group position={[-18, 0, 14]}>
+        <mesh receiveShadow rotation={ROT90} position={[0, 0.04, 0]}>
+          <planeGeometry args={[12, 12]} />
+          <meshLambertMaterial color="#c8a96e" />
+        </mesh>
+        {[[0,5],[5,0],[0,-5],[-5,0]].map(([bx,bz],i)=>(
+          <mesh key={i} castShadow position={[bx,0.15,bz]}>
+            <boxGeometry args={[0.7,0.2,0.7]} />
+            <meshLambertMaterial color="#ffffff" />
+          </mesh>
+        ))}
+        <mesh castShadow position={[0,0.2,0]}>
+          <cylinderGeometry args={[0.9,1.1,0.4,10]} />
+          <meshLambertMaterial color="#b89060" />
+        </mesh>
+      </group>
+
+      <pointLight ref={rimGlowRef} position={[22, 8, 0]} color="#ef476f" intensity={2} distance={30} />
+      <pointLight position={[0, 8, 0]} color="#ef476f" intensity={2.5} distance={35} />
+    </group>
+  );
+}
+
+function DominicanFlag({ y = 0 }) {
+  return (
+    <group position={[0, y, 0]}>
+      {/* Blue top-left */}
+      <mesh position={[-0.55, 0.4, 0.06]}>
+        <planeGeometry args={[1.1, 0.8]} />
+        <meshBasicMaterial color="#002d62" side={THREE.DoubleSide} />
+      </mesh>
+      {/* Blue bottom-right */}
+      <mesh position={[0.55, -0.4, 0.06]}>
+        <planeGeometry args={[1.1, 0.8]} />
+        <meshBasicMaterial color="#002d62" side={THREE.DoubleSide} />
+      </mesh>
+      {/* Red top-right */}
+      <mesh position={[0.55, 0.4, 0.06]}>
+        <planeGeometry args={[1.1, 0.8]} />
+        <meshBasicMaterial color="#ce1126" side={THREE.DoubleSide} />
+      </mesh>
+      {/* Red bottom-left */}
+      <mesh position={[-0.55, -0.4, 0.06]}>
+        <planeGeometry args={[1.1, 0.8]} />
+        <meshBasicMaterial color="#ce1126" side={THREE.DoubleSide} />
+      </mesh>
+      {/* White cross */}
+      <mesh position={[0, 0, 0.08]}>
+        <planeGeometry args={[0.22, 1.62]} />
+        <meshBasicMaterial color="#ffffff" side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0, 0.09]}>
+        <planeGeometry args={[2.22, 0.22]} />
+        <meshBasicMaterial color="#ffffff" side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   LERNER HALL — Contact zone
+   Modern glass & brick building (Columbia Student Center)
+═════════════════════════════════════════════════════════════*/
+function LernerHall({ position }) {
+  const beamRef = useRef();
+  useFrame(({ clock }) => {
+    if (beamRef.current)
+      beamRef.current.material.opacity = 0.06 + Math.abs(Math.sin(clock.elapsedTime * 0.6)) * 0.18;
+  });
+
+  return (
+    <group position={position}>
+      <ZoneRing color="#118ab2" />
+
+      {/* Main brick body */}
+      <mesh castShadow receiveShadow position={[0, 6, 0]}>
+        <boxGeometry args={[22, 12, 16]} />
+        <meshLambertMaterial color={COL_BRICK} />
+      </mesh>
+      {/* Stone base */}
+      <mesh castShadow receiveShadow position={[0, 1, 0]}>
+        <boxGeometry args={[22.5, 2, 16.5]} />
+        <meshLambertMaterial color={COL_STONE_DARK} />
+      </mesh>
+
+      {/* Glass atrium facade — large window panels */}
+      {Array.from({ length: 4 }, (_, i) => (
+        <mesh key={i} position={[0, 3 + i * 2.5, -8.05]}>
+          <boxGeometry args={[18, 2, 0.18]} />
+          <meshLambertMaterial color="#a8d8ea" transparent opacity={0.65} />
+        </mesh>
+      ))}
+      {/* Vertical glass dividers */}
+      {[-7,-3.5,0,3.5,7].map((x,i)=>(
+        <mesh key={i} position={[x, 6, -8.04]}>
+          <boxGeometry args={[0.3, 10, 0.1]} />
+          <meshLambertMaterial color="#5ba4cf" />
+        </mesh>
+      ))}
+
+      {/* Setback upper floor */}
+      <mesh castShadow position={[0, 14, -2]}>
+        <boxGeometry args={[16, 3, 12]} />
+        <meshLambertMaterial color={COL_BRICK_DARK} />
+      </mesh>
+      <mesh castShadow position={[0, 13.2, -2]}>
+        <boxGeometry args={[17, 0.8, 13]} />
+        <meshLambertMaterial color={COL_STONE} />
+      </mesh>
+
+      {/* Comm dish on roof */}
+      <mesh castShadow position={[4, 17, -1]}>
+        <cylinderGeometry args={[0.2, 0.25, 4, 8]} />
+        <meshLambertMaterial color="#888" />
+      </mesh>
+      <group position={[4, 20, -1]}>
+        <mesh castShadow rotation={[Math.PI / 3.5, 0, 0]}>
+          <sphereGeometry args={[2.2, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2.2]} />
+          <meshLambertMaterial color="#1a5f8a" side={THREE.DoubleSide} />
+        </mesh>
+        <mesh position={[0, 1, 0]}>
+          <sphereGeometry args={[0.25, 8, 8]} />
+          <meshBasicMaterial color="#48cae4" />
+        </mesh>
+      </group>
+
+      {/* Transmission beam */}
+      <mesh ref={beamRef} position={[4, 38, -1]}>
+        <cylinderGeometry args={[0.15, 0.9, 40, 8]} />
+        <meshBasicMaterial color="#48cae4" transparent opacity={0.1} side={THREE.DoubleSide} />
+      </mesh>
+
+      <pointLight position={[0, 12, 0]} color="#48cae4" intensity={3} distance={32} />
+    </group>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════
+   SIDE CAMPUS BUILDINGS (Havemeyer, Hamilton, Fayerweather…)
+══════════════════════════════════════════════════════════ */
+function SideCampus() {
+  const buildings = [
+    // Hamilton Hall (east of Low)
+    { pos: [32,  0, -28], w: 16, h: 10, d: 12, color: COL_STONE,   roof: COL_STONE_DARK  },
+    // Avery Hall (architecture, east)
+    { pos: [32,  0,  -6], w: 14, h:  9, d: 12, color: COL_STONE,   roof: COL_STONE_DARK  },
+    // Philosophy Hall (west of Low)
+    { pos: [-32, 0, -28], w: 16, h:  9, d: 12, color: COL_BRICK,   roof: COL_BRICK_DARK  },
+    // Fayerweather (west)
+    { pos: [-32, 0,  -6], w: 14, h:  8, d: 12, color: COL_BRICK,   roof: COL_BRICK_DARK  },
+    // Hartley / Wallach dorms (south)
+    { pos: [-22, 0,  46], w: 18, h: 11, d: 14, color: COL_BRICK,   roof: COL_BRICK_DARK  },
+    { pos: [22,  0,  46], w: 18, h: 11, d: 14, color: COL_BRICK,   roof: COL_BRICK_DARK  },
+    // Wien Hall (north)
+    { pos: [-30, 0, -48], w: 20, h: 10, d: 14, color: COL_BRICK,   roof: COL_ROOF        },
+    { pos: [30,  0, -48], w: 20, h: 10, d: 14, color: COL_BRICK,   roof: COL_ROOF        },
+  ];
+
+  return (
+    <group>
+      {buildings.map((b, i) => (
+        <group key={i} position={b.pos}>
+          <mesh castShadow receiveShadow position={[0, b.h / 2, 0]}>
+            <boxGeometry args={[b.w, b.h, b.d]} />
+            <meshLambertMaterial color={b.color} />
+          </mesh>
+          {/* Roof/parapet cap */}
+          <mesh castShadow position={[0, b.h + 0.5, 0]}>
+            <boxGeometry args={[b.w + 0.4, 0.8, b.d + 0.4]} />
+            <meshLambertMaterial color={b.roof} />
+          </mesh>
+          {/* Stone base */}
+          <mesh castShadow receiveShadow position={[0, 0.7, 0]}>
+            <boxGeometry args={[b.w + 0.4, 1.4, b.d + 0.4]} />
+            <meshLambertMaterial color={COL_STONE_DARK} />
+          </mesh>
+          {/* Entry columns (2) */}
+          {[-2, 2].map((x, j) => (
+            <mesh key={j} castShadow position={[x, b.h * 0.4, -b.d / 2 - 0.1]}>
+              <cylinderGeometry args={[0.3, 0.36, b.h * 0.8, 8]} />
+              <meshLambertMaterial color={COL_STONE} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+    </group>
   );
 }
 
@@ -185,570 +792,50 @@ function ZoneRing({ color }) {
   const matRef = useRef();
   useFrame(({ clock }) => {
     if (matRef.current)
-      matRef.current.opacity = 0.5 + Math.sin(clock.elapsedTime * 2.2) * 0.2;
+      matRef.current.opacity = 0.45 + Math.sin(clock.elapsedTime * 2.2) * 0.2;
   });
   return (
-    <mesh geometry={RING_GEO} rotation={ROT_X_NEG90} position={[0, 0.08, 0]}>
-      <meshBasicMaterial ref={matRef} color={color} transparent opacity={0.6} />
+    <mesh rotation={ROT90} position={[0, 0.08, 0]}>
+      <ringGeometry args={[18, 20, 40]} />
+      <meshBasicMaterial ref={matRef} color={color} transparent opacity={0.5} />
     </mesh>
   );
 }
 
-/* ── Zone sign ─────────────────────────────────────────────── */
-function ZoneSign({ label, color, y = 10 }) {
-  return (
-    <group position={[0, y, 0]}>
-      <mesh castShadow>
-        <boxGeometry args={[6, 1.4, 0.3]} />
-        <meshLambertMaterial color={color} />
-      </mesh>
-      <mesh position={[0, -1.6, 0]} castShadow>
-        <cylinderGeometry args={[0.1, 0.1, 2.2, 6]} />
-        <meshLambertMaterial color="#5a4a3a" />
-      </mesh>
-    </group>
-  );
-}
-
-/* ── Box building helper ───────────────────────────────────── */
-function Building({ pos, w, h, d, color, roofColor }) {
-  return (
-    <group position={pos} castShadow>
-      <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
-        <boxGeometry args={[w, h, d]} />
-        <meshLambertMaterial color={color} />
-      </mesh>
-      {roofColor && (
-        <mesh castShadow position={[0, h + 0.25, 0]}>
-          <boxGeometry args={[w + 0.2, 0.5, d + 0.2]} />
-          <meshLambertMaterial color={roofColor} />
-        </mesh>
-      )}
-    </group>
-  );
-}
-
-/* ════════════════════════════════════════════════════════════
-   HOME ZONE — Colorful HQ + personal tower, warm orange theme
-═════════════════════════════════════════════════════════════*/
-function HomeZone({ position }) {
-  const flagRef = useRef();
-  useFrame(({ clock }) => {
-    if (flagRef.current)
-      flagRef.current.rotation.y = Math.sin(clock.elapsedTime * 1.2) * 0.15;
-  });
-
-  return (
-    <group position={position}>
-      <ZonePlatform id="home" />
-      <ZoneRing color="#f4a261" />
-
-      {/* Main tower — warm orange/yellow */}
-      <mesh castShadow receiveShadow position={[0, 8, 0]}>
-        <boxGeometry args={[6, 16, 6]} />
-        <meshLambertMaterial color="#e76f51" />
-      </mesh>
-      {/* Tower roof */}
-      <mesh castShadow position={[0, 17, 0]}>
-        <coneGeometry args={[4.2, 5, 4]} />
-        <meshLambertMaterial color="#f4a261" />
-      </mesh>
-      {/* Windows — bright yellow */}
-      {[2.5, 5.5, 8.5, 11.5, 14.5].map((y, row) =>
-        [-1.5, 1.5].map((x, col) => (
-          <mesh key={`${row}-${col}`} position={[3.02, y, x]}>
-            <boxGeometry args={[0.08, 1.1, 0.9]} />
-            <meshBasicMaterial color="#ffd166" />
-          </mesh>
-        ))
-      )}
-      {[2.5, 5.5, 8.5, 11.5, 14.5].map((y, row) =>
-        [-1.5, 1.5].map((x, col) => (
-          <mesh key={`b${row}-${col}`} position={[-3.02, y, x]}>
-            <boxGeometry args={[0.08, 1.1, 0.9]} />
-            <meshBasicMaterial color="#ffd166" />
-          </mesh>
-        ))
-      )}
-      {/* Antenna */}
-      <mesh castShadow position={[0, 20.8, 0]}>
-        <cylinderGeometry args={[0.08, 0.08, 2.8, 6]} />
-        <meshLambertMaterial color="#c0c0c0" />
-      </mesh>
-      <mesh position={[0, 22.4, 0]}>
-        <sphereGeometry args={[0.22, 8, 8]} />
-        <meshBasicMaterial color="#ffd166" />
-      </mesh>
-
-      {/* Side buildings */}
-      <Building pos={[-9, 0, -4]} w={3.5} h={8}  d={3.5} color="#f4845f" roofColor="#e76f51" />
-      <Building pos={[ 9, 0,  4]} w={3.5} h={10} d={3.5} color="#e9c46a" roofColor="#f4a261" />
-      <Building pos={[-8, 0,  5]} w={2.8} h={6}  d={2.8} color="#f9c784" roofColor="#e9c46a" />
-      <Building pos={[ 8, 0, -5]} w={2.8} h={7}  d={2.8} color="#e76f51" roofColor="#e9c46a" />
-
-      {/* Dominican flag pole + flag */}
-      <group position={[11, 0, -8]} ref={flagRef}>
-        <mesh castShadow position={[0, 5, 0]}>
-          <cylinderGeometry args={[0.1, 0.12, 10, 6]} />
-          <meshLambertMaterial color="#c0c0c0" />
-        </mesh>
-        {/* Flag — blue/red with white cross (DR flag) */}
-        <mesh position={[1.0, 8.8, 0.05]}>
-          <planeGeometry args={[2.0, 1.5]} />
-          <meshBasicMaterial color="#002d62" side={THREE.DoubleSide} />
-        </mesh>
-        <mesh position={[1.0, 8.8, 0.06]}>
-          {/* White cross vertical */}
-          <planeGeometry args={[0.22, 1.52]} />
-          <meshBasicMaterial color="#ffffff" side={THREE.DoubleSide} />
-        </mesh>
-        <mesh position={[1.0, 8.8, 0.07]}>
-          {/* White cross horizontal */}
-          <planeGeometry args={[2.02, 0.22]} />
-          <meshBasicMaterial color="#ffffff" side={THREE.DoubleSide} />
-        </mesh>
-        <mesh position={[0.48, 9.37, 0.04]}>
-          <planeGeometry args={[0.98, 0.73]} />
-          <meshBasicMaterial color="#002d62" side={THREE.DoubleSide} />
-        </mesh>
-        <mesh position={[1.52, 8.23, 0.04]}>
-          <planeGeometry args={[0.98, 0.73]} />
-          <meshBasicMaterial color="#002d62" side={THREE.DoubleSide} />
-        </mesh>
-        <mesh position={[0.48, 8.23, 0.04]}>
-          <planeGeometry args={[0.98, 0.73]} />
-          <meshBasicMaterial color="#ce1126" side={THREE.DoubleSide} />
-        </mesh>
-        <mesh position={[1.52, 9.37, 0.04]}>
-          <planeGeometry args={[0.98, 0.73]} />
-          <meshBasicMaterial color="#ce1126" side={THREE.DoubleSide} />
-        </mesh>
-      </group>
-
-      <ZoneSign label="HOME" color="#e76f51" y={13} />
-      <pointLight position={[0, 16, 0]} color="#ffd166" intensity={3} distance={30} />
-    </group>
-  );
-}
-
-/* ════════════════════════════════════════════════════════════
-   PROJECTS ZONE — Purple data-center with blinking LEDs
-═════════════════════════════════════════════════════════════*/
-function ProjectsZone({ position }) {
-  const ledRefs = useRef([]);
-  useFrame(({ clock }) => {
-    ledRefs.current.forEach((m, i) => {
-      if (m) m.color.setHex(
-        Math.sin(clock.elapsedTime * 3 + i * 0.8) > 0.2 ? 0x9b5de5 : 0x5a108f
-      );
-    });
-  });
-
-  return (
-    <group position={position}>
-      <ZonePlatform id="projects" />
-      <ZoneRing color="#9b5de5" />
-
-      {/* Server racks — 3 × 2 */}
-      {[-6, 0, 6].map((x, col) =>
-        [-4, 4].map((z, row) => (
-          <group key={`${col}-${row}`} position={[x, 0, z]}>
-            {/* Cabinet */}
-            <mesh castShadow receiveShadow position={[0, 4, 0]}>
-              <boxGeometry args={[2.4, 8, 1.8]} />
-              <meshLambertMaterial color="#3d1f6b" />
-            </mesh>
-            {/* Front panel */}
-            <mesh position={[0, 4, 0.92]}>
-              <boxGeometry args={[2.2, 7.8, 0.05]} />
-              <meshLambertMaterial color="#2a1248" />
-            </mesh>
-            {/* LED rows */}
-            {[0.8, 1.8, 2.8, 3.8, 4.8, 5.8, 6.8].map((y, j) => (
-              <mesh key={j} position={[0, y, 0.96]}
-                ref={el => {
-                  if (el) ledRefs.current[col * 14 + row * 7 + j] = el.material;
-                }}>
-                <boxGeometry args={[1.8, 0.28, 0.02]} />
-                <meshBasicMaterial color="#9b5de5" />
-              </mesh>
-            ))}
-          </group>
-        ))
-      )}
-
-      {/* Central data spine */}
-      <mesh castShadow position={[0, 6, 0]}>
-        <cylinderGeometry args={[1.4, 1.4, 12, 12]} />
-        <meshLambertMaterial color="#5a108f" />
-      </mesh>
-      {/* Glow rings on spine */}
-      {[1, 3, 5, 7, 9, 11].map((y, i) => (
-        <mesh key={i} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[1.42, 0.08, 8, 16]} />
-          <meshBasicMaterial color="#c77dff" />
-        </mesh>
-      ))}
-
-      <ZoneSign label="PROJECTS" color="#9b5de5" y={11} />
-      <pointLight position={[0, 10, 0]} color="#c77dff" intensity={4} distance={30} />
-    </group>
-  );
-}
-
-/* ════════════════════════════════════════════════════════════
-   SKILLS ZONE — Green tech totem poles with glowing orbs
-═════════════════════════════════════════════════════════════*/
-const SKILL_PILLARS = [
-  { x: -9,  z:  0, h: 12, color: '#06d6a0', label: 'Python'  },
-  { x: -4,  z: -5, h:  9, color: '#48cae4', label: 'Spark'   },
-  { x:  4,  z:  5, h: 14, color: '#06d6a0', label: 'ML/AI'   },
-  { x:  9,  z:  0, h: 10, color: '#0077b6', label: 'AWS'     },
-  { x:  0,  z: -8, h:  8, color: '#48cae4', label: 'SQL'     },
-  { x:  0,  z:  8, h: 10, color: '#90e0ef', label: 'Docker'  },
-  { x: -5,  z:  6, h:  7, color: '#06d6a0', label: 'dbt'     },
-  { x:  5,  z: -6, h:  8, color: '#0077b6', label: 'Airflow' },
-];
-
-function SkillsZone({ position }) {
-  const orbRefs = useRef([]);
-  useFrame(({ clock }) => {
-    orbRefs.current.forEach((m, i) => {
-      if (m) m.opacity = 0.7 + Math.sin(clock.elapsedTime * 2.2 + i * 0.9) * 0.3;
-    });
-  });
-
-  return (
-    <group position={position}>
-      <ZonePlatform id="skills" />
-      <ZoneRing color="#06d6a0" />
-
-      {/* Holographic base disc */}
-      <mesh rotation={ROT_X_NEG90} position={[0, 0.35, 0]}>
-        <circleGeometry args={[5, 32]} />
-        <meshBasicMaterial color="#06d6a0" transparent opacity={0.18} />
-      </mesh>
-
-      {SKILL_PILLARS.map((p, i) => (
-        <group key={i} position={[p.x, 0, p.z]}>
-          {/* Pillar body — bright colored, not dark */}
-          <mesh castShadow receiveShadow position={[0, p.h / 2, 0]}>
-            <boxGeometry args={[1.2, p.h, 1.2]} />
-            <meshLambertMaterial color={p.color} />
-          </mesh>
-          {/* Bright orb on top */}
-          <mesh position={[0, p.h + 0.8, 0]}
-            ref={el => { orbRefs.current[i] = el?.material; }}>
-            <sphereGeometry args={[0.65, 14, 14]} />
-            <meshBasicMaterial color={p.color} transparent opacity={0.9} />
-          </mesh>
-          <pointLight position={[0, p.h + 0.8, 0]} color={p.color} intensity={2} distance={14} />
-        </group>
-      ))}
-
-      {/* Skill name bars (bar chart) — on the ground */}
-      {[
-        { x: -9, w: 0.9, color: '#06d6a0' },
-        { x: -6, w: 0.8, color: '#48cae4' },
-        { x: -3, w: 0.7, color: '#06d6a0' },
-        { x:  0, w: 0.6, color: '#0077b6' },
-        { x:  3, w: 0.8, color: '#90e0ef' },
-        { x:  6, w: 0.7, color: '#06d6a0' },
-      ].map((b, i) => (
-        <mesh key={i} receiveShadow position={[b.x, 0.2, -11]}>
-          <boxGeometry args={[1.2, 0.4, b.w * 4]} />
-          <meshLambertMaterial color={b.color} />
-        </mesh>
-      ))}
-
-      <ZoneSign label="SKILLS" color="#06d6a0" y={12} />
-      <pointLight position={[0, 8, 0]} color="#06d6a0" intensity={3} distance={30} />
-    </group>
-  );
-}
-
-/* ════════════════════════════════════════════════════════════
-   SPORTS ZONE — NBA court + baseball + DR culture
-═════════════════════════════════════════════════════════════*/
-function SportsZone({ position }) {
-  const rimRef1 = useRef();
-  const rimRef2 = useRef();
-  useFrame(({ clock }) => {
-    const glow = 0.5 + Math.sin(clock.elapsedTime * 1.5) * 0.3;
-    if (rimRef1.current) rimRef1.current.intensity = glow * 2;
-    if (rimRef2.current) rimRef2.current.intensity = glow * 2;
-  });
-
-  return (
-    <group position={position}>
-      <ZoneRing color="#ef476f" />
-
-      {/* Basketball court floor */}
-      <mesh receiveShadow rotation={ROT_X_NEG90} position={[0, 0.03, 0]}>
-        <planeGeometry args={[28, 20]} />
-        <meshLambertMaterial color="#c8792a" />
-      </mesh>
-      {/* Court border stripe */}
-      <mesh receiveShadow rotation={ROT_X_NEG90} position={[0, 0.02, 0]}>
-        <planeGeometry args={[29.5, 21.5]} />
-        <meshLambertMaterial color="#a0601c" />
-      </mesh>
-
-      {/* Court lines */}
-      <mesh rotation={ROT_X_NEG90} position={[0, 0.05, 0]}>
-        <ringGeometry args={[3.6, 3.78, 32]} />
-        <meshBasicMaterial color="#ffffff" />
-      </mesh>
-      <mesh rotation={ROT_X_NEG90} position={[0, 0.05, 0]}>
-        <planeGeometry args={[0.14, 20]} />
-        <meshBasicMaterial color="#ffffff" />
-      </mesh>
-
-      {/* Hoops */}
-      {[-13, 13].map((x, i) => (
-        <group key={i} position={[x, 0, 0]}>
-          <mesh castShadow position={[0, 3, 0]}>
-            <cylinderGeometry args={[0.14, 0.16, 6, 8]} />
-            <meshLambertMaterial color="#888888" />
-          </mesh>
-          {/* Backboard */}
-          <mesh castShadow position={[i === 0 ? 0.8 : -0.8, 5.5, 0]}>
-            <boxGeometry args={[0.15, 2.2, 3.2]} />
-            <meshLambertMaterial color="#e8f0ff" />
-          </mesh>
-          {/* Rim — bright orange */}
-          <mesh position={[i === 0 ? 1.5 : -1.5, 4.6, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[0.48, 0.06, 8, 16]} />
-            <meshBasicMaterial color="#ff8c00" />
-          </mesh>
-          <pointLight
-            ref={i === 0 ? rimRef1 : rimRef2}
-            position={[i === 0 ? 1.5 : -1.5, 4.6, 0]}
-            color="#ff8c00" intensity={2} distance={8} />
-        </group>
-      ))}
-
-      {/* Stadium light towers — 4 corners */}
-      {[[-12, -9], [12, -9], [-12, 9], [12, 9]].map(([x, z], i) => (
-        <group key={i} position={[x, 0, z]}>
-          <mesh castShadow position={[0, 6, 0]}>
-            <cylinderGeometry args={[0.18, 0.22, 12, 6]} />
-            <meshLambertMaterial color="#888888" />
-          </mesh>
-          <mesh position={[0, 12.5, 0]}>
-            <boxGeometry args={[2.2, 0.5, 0.8]} />
-            <meshBasicMaterial color="#fffde0" />
-          </mesh>
-          <pointLight position={[0, 13, 0]} color="#fffce0" intensity={4} distance={28} castShadow={false} />
-        </group>
-      ))}
-
-      {/* Scoreboard */}
-      <mesh castShadow position={[0, 11, 0]}>
-        <boxGeometry args={[10, 4.5, 0.5]} />
-        <meshLambertMaterial color="#ef476f" />
-      </mesh>
-      <mesh position={[0, 11, 0.28]}>
-        <boxGeometry args={[9.5, 4.0, 0.05]} />
-        <meshBasicMaterial color="#1a0008" />
-      </mesh>
-      {/* Score numbers (abstract bright rectangles) */}
-      {[-3.5, -1.2, 1.2, 3.5].map((x, i) => (
-        <mesh key={i} position={[x, 11, 0.32]}>
-          <boxGeometry args={[0.8, 2.2, 0.04]} />
-          <meshBasicMaterial color={i < 2 ? '#ffd166' : '#06d6a0'} />
-        </mesh>
-      ))}
-      <mesh position={[0, 14, 0]}>
-        <cylinderGeometry args={[0.12, 0.12, 5.5, 6]} />
-        <meshLambertMaterial color="#888888" />
-      </mesh>
-
-      {/* Baseball corner — small diamond */}
-      <group position={[17, 0, 10]}>
-        <mesh receiveShadow rotation={ROT_X_NEG90} position={[0, 0.05, 0]}>
-          <planeGeometry args={[10, 10]} />
-          <meshLambertMaterial color="#c8a96e" />
-        </mesh>
-        {/* Bases */}
-        {[[0,4],[4,0],[0,-4],[-4,0]].map(([bx, bz], i) => (
-          <mesh key={i} castShadow position={[bx, 0.1, bz]}>
-            <boxGeometry args={[0.7, 0.2, 0.7]} />
-            <meshLambertMaterial color="#ffffff" />
-          </mesh>
-        ))}
-        {/* Pitcher mound */}
-        <mesh castShadow position={[0, 0.15, 0]}>
-          <cylinderGeometry args={[0.9, 1.1, 0.3, 12]} />
-          <meshLambertMaterial color="#b89060" />
-        </mesh>
-        {/* Bat */}
-        <mesh castShadow position={[3, 0.8, -2]} rotation={[0, 0.3, Math.PI / 3]}>
-          <cylinderGeometry args={[0.1, 0.22, 3, 8]} />
-          <meshLambertMaterial color="#8B4513" />
-        </mesh>
-      </group>
-
-      {/* Soccer mini-field */}
-      <group position={[-18, 0, -8]}>
-        <mesh receiveShadow rotation={ROT_X_NEG90} position={[0, 0.05, 0]}>
-          <planeGeometry args={[12, 9]} />
-          <meshLambertMaterial color="#2d9e2d" />
-        </mesh>
-        {/* Goal posts */}
-        {[-4.8, 4.8].map((x, i) => (
-          <group key={i} position={[x, 0, 0]}>
-            <mesh castShadow position={[-0.6, 1.2, 0]}>
-              <boxGeometry args={[0.1, 2.4, 0.1]} />
-              <meshLambertMaterial color="#ffffff" />
-            </mesh>
-            <mesh castShadow position={[0.6, 1.2, 0]}>
-              <boxGeometry args={[0.1, 2.4, 0.1]} />
-              <meshLambertMaterial color="#ffffff" />
-            </mesh>
-            <mesh castShadow position={[0, 2.4, 0]}>
-              <boxGeometry args={[1.3, 0.1, 0.1]} />
-              <meshLambertMaterial color="#ffffff" />
-            </mesh>
-          </group>
-        ))}
-        {/* Soccer ball */}
-        <mesh castShadow position={[0, 0.45, 0]}>
-          <sphereGeometry args={[0.45, 10, 10]} />
-          <meshLambertMaterial color="#ffffff" />
-        </mesh>
-      </group>
-
-      <ZoneSign label="SPORTS" color="#ef476f" y={8} />
-      <pointLight position={[0, 8, 0]} color="#ef476f" intensity={3} distance={35} />
-    </group>
-  );
-}
-
-/* ════════════════════════════════════════════════════════════
-   CONTACT ZONE — Deep-space comms, bright blue station
-═════════════════════════════════════════════════════════════*/
-function ContactZone({ position }) {
-  const dishRef = useRef();
-  const beamRef = useRef();
-  useFrame(({ clock }) => {
-    if (dishRef.current) dishRef.current.rotation.y = clock.elapsedTime * 0.35;
-    if (beamRef.current)
-      beamRef.current.material.opacity = 0.08 + Math.abs(Math.sin(clock.elapsedTime * 0.7)) * 0.22;
-  });
-
-  return (
-    <group position={position}>
-      <ZonePlatform id="contact" />
-      <ZoneRing color="#118ab2" />
-
-      {/* Main dish mount */}
-      <mesh castShadow receiveShadow position={[0, 3, 0]}>
-        <cylinderGeometry args={[0.4, 0.5, 6, 10]} />
-        <meshLambertMaterial color="#2a6496" />
-      </mesh>
-      {/* Dish */}
-      <group ref={dishRef} position={[0, 7.5, 0]}>
-        <mesh castShadow rotation={[Math.PI / 3, 0, 0]}>
-          <sphereGeometry args={[5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2.2]} />
-          <meshLambertMaterial color="#1a5f8a" side={THREE.DoubleSide} />
-        </mesh>
-        <mesh rotation={[Math.PI / 3, 0, 0]}>
-          <sphereGeometry args={[5.05, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2.2]} />
-          <meshBasicMaterial color="#48cae4" transparent opacity={0.15} side={THREE.DoubleSide} />
-        </mesh>
-        {/* Focal emitter */}
-        <mesh position={[0, 2.2, 0]}>
-          <sphereGeometry args={[0.3, 10, 10]} />
-          <meshBasicMaterial color="#48cae4" />
-        </mesh>
-      </group>
-
-      {/* Transmission beam */}
-      <mesh ref={beamRef} position={[0, 35, 0]}>
-        <cylinderGeometry args={[0.2, 1.2, 60, 10]} />
-        <meshBasicMaterial color="#48cae4" transparent opacity={0.12} side={THREE.DoubleSide} />
-      </mesh>
-
-      {/* Relay towers */}
-      {[[-10, 4], [10, -6], [-8, -9], [9, 7]].map(([x, z], i) => (
-        <group key={i} position={[x, 0, z]}>
-          <mesh castShadow position={[0, 3.5, 0]}>
-            <cylinderGeometry args={[0.15, 0.2, 7, 6]} />
-            <meshLambertMaterial color="#2a6496" />
-          </mesh>
-          <mesh position={[0, 7.3, 0]}>
-            <sphereGeometry args={[0.28, 8, 8]} />
-            <meshBasicMaterial color="#48cae4" />
-          </mesh>
-          <pointLight position={[0, 7.5, 0]} color="#48cae4" intensity={2.5} distance={12} />
-        </group>
-      ))}
-
-      {/* Control building */}
-      <Building pos={[-7, 0, 2]} w={4.5} h={5} d={4} color="#1a6fa8" roofColor="#118ab2" />
-      <Building pos={[7, 0, -3]} w={3.5} h={4} d={3.5} color="#1a5f8a" roofColor="#2196f3" />
-
-      <ZoneSign label="CONTACT" color="#118ab2" y={12} />
-      <pointLight position={[0, 9, 0]} color="#48cae4" intensity={3.5} distance={32} />
-    </group>
-  );
-}
-
-/* ── Lampposts along roads ─────────────────────────────────── */
-const LAMP_POSITIONS = [
-  [-20, 6], [20, 6], [-20, -6], [20, -6],
-  [6, -20], [6, 20], [-6, -20], [-6, 20],
-  [-38, 6], [38, 6], [-38, -6], [38, -6],
-  [6, -38], [6, 38], [-6, -38], [-6, 38],
-];
-
-function Lampposts() {
-  return (
-    <group>
-      {LAMP_POSITIONS.map(([x, z], i) => (
-        <group key={i} position={[x, 0, z]}>
-          <mesh castShadow position={[0, 2.5, 0]}>
-            <cylinderGeometry args={[0.1, 0.13, 5, 6]} />
-            <meshLambertMaterial color="#555566" />
-          </mesh>
-          <mesh castShadow position={[0, 5.2, 0]}>
-            <sphereGeometry args={[0.35, 8, 8]} />
-            <meshBasicMaterial color="#fffde0" />
-          </mesh>
-          <pointLight position={[0, 5.4, 0]} color="#fff8c0" intensity={1.5} distance={15} castShadow={false} />
-        </group>
-      ))}
-    </group>
-  );
-}
-
-/* ── Trees ─────────────────────────────────────────────────── */
+/* ── Campus trees ──────────────────────────────────────────── */
+// Positioned along College Walk, South Field border, and campus edges
 const TREE_POSITIONS = [
-  [25, 0, 25], [-25, 0, 25], [25, 0, -25], [-25, 0, -25],
-  [38, 0, 18], [-38, 0, 18], [38, 0, -18], [-38, 0, -18],
-  [18, 0, 38], [-18, 0, 38], [18, 0, -38], [-18, 0, -38],
-  [70, 0, 12], [70, 0, -12], [-70, 0, 12], [-70, 0, -12],
-  [12, 0, 70], [-12, 0, 70], [12, 0, -70], [-12, 0, -70],
-  [45, 0, 45], [-45, 0, 45], [45, 0, -45], [-45, 0, -45],
-  [85, 0, 0],  [-85, 0, 0],  [0, 0, 85],  [0, 0, -85],
-  [60, 0, 30], [-60, 0, 30], [60, 0, -30], [-60, 0, -30],
+  // College Walk trees (flanking the path, z≈-4)
+  ...Array.from({length:9},(_, i)=>[(-40 + i*10), 0, -10]),
+  ...Array.from({length:9},(_, i)=>[(-40 + i*10), 0,  2]),
+  // South Field perimeter
+  ...[-28,-14,0,14,28].map(x=>[x, 0, -5]),
+  ...[-28,-14,0,14,28].map(x=>[x, 0, 48]),
+  ...Array.from({length:5},(_, i)=>[-30, 0, 5 + i*9]),
+  ...Array.from({length:5},(_, i)=>[ 30, 0, 5 + i*9]),
+  // Amsterdam Ave border (west)
+  ...Array.from({length:14},(_, i)=>[-58, 0, -60 + i*10]),
+  // Broadway border (east)
+  ...Array.from({length:14},(_, i)=>[ 58, 0, -60 + i*10]),
+  // Campus corners
+  [-48,0,-55],[48,0,-55],[-48,0,55],[48,0,55],
+  [-48,0,-38],[48,0,-38],[-48,0,38],[48,0,38],
 ];
 
-function Trees() {
+function CampusTrees() {
   return (
     <group>
       {TREE_POSITIONS.map((pos, i) => {
-        const h = 4 + (i % 5) * 0.9;
+        const h   = 5 + (i % 4) * 1.2;
         const mat = TREE_MATS[i % 3];
         return (
           <group key={i} position={pos}>
             <mesh geometry={TRUNK_GEO} material={TRUNK_MAT} castShadow
-              position={[0, h * 0.28, 0]} />
-            <mesh geometry={CONE_GEO_LG} material={mat} castShadow
-              position={[0, h * 0.7, 0]} />
-            <mesh geometry={CONE_GEO_SM} material={mat} castShadow
-              position={[0, h * 0.92, 0]} />
+              position={[0, h * 0.3, 0]} />
+            <mesh geometry={CONE_LG} material={mat} castShadow
+              position={[0, h * 0.72, 0]} />
+            <mesh geometry={CONE_SM} material={mat} castShadow
+              position={[0, h * 0.94, 0]} />
           </group>
         );
       })}
@@ -756,17 +843,43 @@ function Trees() {
   );
 }
 
-/* ── Invisible border walls ────────────────────────────────── */
+/* ── Lampposts ──────────────────────────────────────────────── */
+const LAMP_SPOTS = [
+  // College Walk
+  ...[-30,-20,-10,0,10,20,30].flatMap(x=>[[x,-8],[x,2]]),
+  // Central N-S axis
+  ...[-40,-25,-10,10,25,40].flatMap(z=>[[-5,z],[5,z]]),
+];
+
+function Lampposts() {
+  return (
+    <group>
+      {LAMP_SPOTS.map(([x,z], i) => (
+        <group key={i} position={[x, 0, z]}>
+          <mesh castShadow position={[0, 3, 0]}>
+            <cylinderGeometry args={[0.1, 0.13, 6, 6]} />
+            <meshLambertMaterial color="#4a4a5a" />
+          </mesh>
+          <mesh castShadow position={[0, 6.3, 0]}>
+            <sphereGeometry args={[0.32, 8, 8]} />
+            <meshBasicMaterial color="#fffde0" />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+/* ── Invisible border walls ─────────────────────────────────── */
 function Borders() {
-  const walls = [
-    { pos: [0,   2,  110], args: [220, 4, 1] },
-    { pos: [0,   2, -110], args: [220, 4, 1] },
-    { pos: [ 110, 2, 0],   args: [1, 4, 220] },
-    { pos: [-110, 2, 0],   args: [1, 4, 220] },
-  ];
   return (
     <>
-      {walls.map((w, i) => (
+      {[
+        { pos: [0,  2,  100], args: [200, 4, 1] },
+        { pos: [0,  2, -100], args: [200, 4, 1] },
+        { pos: [ 100, 2,  0], args: [1, 4, 200] },
+        { pos: [-100, 2,  0], args: [1, 4, 200] },
+      ].map((w, i) => (
         <RigidBody key={i} type="fixed" colliders="cuboid">
           <mesh visible={false} position={w.pos}>
             <boxGeometry args={w.args} />

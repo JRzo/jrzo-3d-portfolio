@@ -100,7 +100,7 @@ export default function Character({ keys, onWalk, onSprintUnlock, onPositionUpda
     /* Sync visual mesh to physics */
     const pos = rbRef.current.translation();
     if (groupRef.current) {
-      groupRef.current.position.set(pos.x, pos.y - 0.92, pos.z);
+      groupRef.current.position.set(pos.x, pos.y - 0.61, pos.z);
       groupRef.current.rotation.y = yaw.current;
     }
 

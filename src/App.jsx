@@ -9,18 +9,36 @@ import { useAchievements } from './hooks/useAchievements';
 import { useKeyboard } from './hooks/useKeyboard';
 import { ZONES } from './components/World';
 
-// Only trigger React state update when character moves ≥ 0.5 world units.
 const POS_THRESHOLD_SQ = 0.25;
 
 export default function App() {
-  const [ready,      setReady]      = useState(false);
-  const [activeZone, setActiveZone] = useState(null);
-  const [openPanel,  setOpenPanel]  = useState(null);
-  const [charPos,    setCharPos]    = useState({ x: 0, z: 0 });
+  // ready = true only after BOTH the loading animation completes AND the physics
+  // scene fires its first frame (guarantees Rapier WASM is loaded and rendering).
+  const [ready,        setReady]        = useState(false);
+  const [activeZone,   setActiveZone]   = useState(null);
+  const [openPanel,    setOpenPanel]    = useState(null);
+  const [charPos,      setCharPos]      = useState({ x: 0, z: 0 });
+
+  const sceneReadyRef   = useRef(false);
+  const loadingDoneRef  = useRef(false);
+
+  const trySetReady = useCallback(() => {
+    if (sceneReadyRef.current && loadingDoneRef.current) setReady(true);
+  }, []);
+
+  const onSceneReady = useCallback(() => {
+    sceneReadyRef.current = true;
+    trySetReady();
+  }, [trySetReady]);
+
+  const onLoadingComplete = useCallback(() => {
+    loadingDoneRef.current = true;
+    trySetReady();
+  }, [trySetReady]);
 
   const keys = useKeyboard();
 
-  /* Throttled position update — avoids 60fps React re-renders */
+  /* Throttled position → avoid 60fps React re-renders */
   const lastPos = useRef({ x: 0, z: 0 });
   const updatePos = useCallback((pos) => {
     const dx = pos.x - lastPos.current.x;
@@ -31,10 +49,8 @@ export default function App() {
     }
   }, []);
 
-  /* Achievements */
   const achievements = useAchievements(notifyAchievement);
 
-  /* Zone tracking — deduplicated */
   const lastZone = useRef(null);
   const onZoneChange = useCallback((zoneId) => {
     if (zoneId === lastZone.current) return;
@@ -43,20 +59,19 @@ export default function App() {
     if (zoneId) achievements.onZoneEnter(zoneId);
   }, [achievements]);
 
-  /* Nav icon click → toggle panel */
   const handleNavClick = useCallback((zoneId) => {
     setOpenPanel((prev) => (prev === zoneId ? null : zoneId));
   }, []);
 
-  /* Keyboard shortcuts: E = enter zone, ESC = close */
+  /* E = enter/close zone, ESC = close panel */
   useEffect(() => {
     const handler = (e) => {
       if (e.code === 'Escape') {
         setOpenPanel(null);
       } else if (e.code === 'KeyE') {
         setOpenPanel((prev) => {
-          if (prev) return null;          // E also closes the panel
-          return lastZone.current ?? null; // open current zone if near one
+          if (prev) return null;
+          return lastZone.current ?? null;
         });
       }
     };
@@ -64,12 +79,14 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  const zoneMeta = activeZone ? ZONES.find(z => z.id === activeZone) : null;
+  const zoneMeta   = activeZone ? ZONES.find(z => z.id === activeZone) : null;
   const showPrompt = activeZone && !openPanel;
 
   return (
     <>
-      {!ready && <LoadingScreen onLoaded={() => setReady(true)} />}
+      {/* Loading screen renders on top; Canvas renders behind it from the start
+          so Rapier/Three.js can initialize while the user watches the progress bar */}
+      {!ready && <LoadingScreen onLoaded={onLoadingComplete} />}
 
       <div style={{ width: '100vw', height: '100vh' }}>
         <Scene
@@ -78,6 +95,7 @@ export default function App() {
           onWalk={achievements.onWalk}
           onSprintUnlock={achievements.onSprintUnlock}
           onPositionUpdate={updatePos}
+          onReady={onSceneReady}
         />
       </div>
 
@@ -91,12 +109,18 @@ export default function App() {
 
           <Panel zone={openPanel} onClose={() => setOpenPanel(null)} />
 
-          {/* Zone entry prompt — appears when near a zone */}
-          <div className={`zone-prompt ${showPrompt ? 'visible' : ''}`}
+          {/* Zone entry prompt */}
+          <div
+            className={`zone-prompt ${showPrompt ? 'visible' : ''}`}
             style={zoneMeta ? { borderColor: zoneMeta.color, color: zoneMeta.color } : {}}
             onClick={() => showPrompt && setOpenPanel(activeZone)}
           >
-            <kbd style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 5, padding: '1px 7px', fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>E</kbd>
+            <kbd style={{
+              background: 'rgba(255,255,255,0.12)',
+              border: '1px solid rgba(255,255,255,0.25)',
+              borderRadius: 5, padding: '1px 7px',
+              fontFamily: "'JetBrains Mono',monospace", fontSize: 12,
+            }}>E</kbd>
             {zoneMeta && <span>Enter {zoneMeta.label}</span>}
           </div>
 

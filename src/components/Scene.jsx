@@ -1,5 +1,5 @@
-import { Suspense, useCallback } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Suspense, useCallback, useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
@@ -8,10 +8,22 @@ import Character from './Character';
 import World, { ZONES, ZONE_RADIUS } from './World';
 
 const ZONE_RADIUS_SQ = ZONE_RADIUS * ZONE_RADIUS;
-
 const SKY_COLOR = '#c8dff0';
 
-export default function Scene({ keys, onZoneChange, onWalk, onSprintUnlock, onPositionUpdate }) {
+/* Fires onReady on the first frame after Rapier physics is initialized.
+   Must be placed inside <Physics> so useFrame runs within the physics context. */
+function ReadySignal({ onReady }) {
+  const fired = useRef(false);
+  useFrame(() => {
+    if (!fired.current) {
+      fired.current = true;
+      onReady?.();
+    }
+  });
+  return null;
+}
+
+export default function Scene({ keys, onZoneChange, onWalk, onSprintUnlock, onPositionUpdate, onReady }) {
   const handlePositionUpdate = useCallback((pos) => {
     onPositionUpdate?.(pos);
 
@@ -41,6 +53,7 @@ export default function Scene({ keys, onZoneChange, onWalk, onSprintUnlock, onPo
     >
       <Suspense fallback={null}>
         <Physics gravity={[0, -20, 0]} timeStep="vary">
+          <ReadySignal onReady={onReady} />
           <World />
           <Character
             keys={keys}
