@@ -20,7 +20,7 @@
 
 import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import * as THREE from 'three';
-import { useRef, useMemo } from 'react';
+import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 
 /* ── Zone definitions ─────────────────────────────────────── */
@@ -68,9 +68,16 @@ const TREE_MATS   = [
 ];
 
 // Shared geometries
-const TRUNK_GEO   = new THREE.CylinderGeometry(0.22, 0.32, 2.4, 7);
-const CONE_LG     = new THREE.ConeGeometry(2.2, 4.0, 9);
-const CONE_SM     = new THREE.ConeGeometry(1.5, 2.6, 9);
+const TRUNK_GEO      = new THREE.CylinderGeometry(0.22, 0.32, 2.4, 7);
+const CONE_LG        = new THREE.ConeGeometry(2.2, 4.0, 9);
+const CONE_SM        = new THREE.ConeGeometry(1.5, 2.6, 9);
+const LAMP_POLE_GEO  = new THREE.CylinderGeometry(0.1, 0.13, 6, 6);
+const LAMP_GLOBE_GEO = new THREE.SphereGeometry(0.32, 8, 8);
+const DASH_GEO       = new THREE.PlaneGeometry(1, 1);
+
+const LAMP_POLE_MAT  = new THREE.MeshLambertMaterial({ color: '#4a4a5a' });
+const LAMP_GLOBE_MAT = new THREE.MeshBasicMaterial({ color: '#fffde0' });
+const DASH_MAT       = new THREE.MeshBasicMaterial({ color: '#ffd166' });
 
 /* ══════════════════════════════════════════════════════════
    WORLD ROOT
@@ -183,56 +190,22 @@ function CampusGround() {
 
 /* ── Roads (Amsterdam Ave, Broadway, 116th) ────────────────── */
 function Roads() {
-  const hDashes = useMemo(() =>
-    Array.from({ length: 18 }, (_, j) => [-82 + j * 10, 0.08, -4]), []);
-  const vDashesW = useMemo(() =>
-    Array.from({ length: 16 }, (_, j) => [-68, 0.08, -75 + j * 10]), []);
-  const vDashesE = useMemo(() =>
-    Array.from({ length: 16 }, (_, j) => [68, 0.08, -75 + j * 10]), []);
-
   return (
     <group>
-      {/* Amsterdam Ave — west */}
-      <mesh receiveShadow rotation={ROT90} position={[-68, 0.02, 0]}>
-        <planeGeometry args={[12, 200]} />
-        <meshLambertMaterial color={COL_ROAD} />
+      <mesh rotation={ROT90} position={[-68, 0.02, 0]}>
+        <planeGeometry args={[12, 200]} /><primitive object={ROAD_MAT} attach="material" />
       </mesh>
-      {/* Broadway — east */}
-      <mesh receiveShadow rotation={ROT90} position={[68, 0.02, 0]}>
-        <planeGeometry args={[12, 200]} />
-        <meshLambertMaterial color={COL_ROAD} />
+      <mesh rotation={ROT90} position={[68, 0.02, 0]}>
+        <planeGeometry args={[12, 200]} /><primitive object={ROAD_MAT} attach="material" />
       </mesh>
-      {/* 116th St — main entrance road */}
-      <mesh receiveShadow rotation={ROT90} position={[0, 0.02, 72]}>
-        <planeGeometry args={[200, 12]} />
-        <meshLambertMaterial color={COL_ROAD} />
+      <mesh rotation={ROT90} position={[0, 0.02, 72]}>
+        <planeGeometry args={[200, 12]} /><primitive object={ROAD_MAT} attach="material" />
       </mesh>
-      {/* 120th St — north boundary */}
-      <mesh receiveShadow rotation={ROT90} position={[0, 0.02, -72]}>
-        <planeGeometry args={[200, 12]} />
-        <meshLambertMaterial color={COL_ROAD} />
+      <mesh rotation={ROT90} position={[0, 0.02, -72]}>
+        <planeGeometry args={[200, 12]} /><primitive object={ROAD_MAT} attach="material" />
       </mesh>
-      {/* Dashes on 116th */}
-      {hDashes.map((pos, j) => (
-        <mesh key={j} rotation={ROT90} position={[pos[0], 0.09, 72]}>
-          <planeGeometry args={[5, 0.3]} />
-          <meshBasicMaterial color="#ffd166" />
-        </mesh>
-      ))}
-      {/* Dashes on Amsterdam */}
-      {vDashesW.map((pos, j) => (
-        <mesh key={j} rotation={ROT90} position={[-68, 0.09, pos[2]]}>
-          <planeGeometry args={[0.3, 5]} />
-          <meshBasicMaterial color="#ffd166" />
-        </mesh>
-      ))}
-      {/* Dashes on Broadway */}
-      {vDashesE.map((pos, j) => (
-        <mesh key={j} rotation={ROT90} position={[68, 0.09, pos[2]]}>
-          <planeGeometry args={[0.3, 5]} />
-          <meshBasicMaterial color="#ffd166" />
-        </mesh>
-      ))}
+      {/* All 50 road dashes as a single InstancedMesh */}
+      <IM mats={DASH_DATA} geo={DASH_GEO} mat={DASH_MAT} />
     </group>
   );
 }
@@ -804,7 +777,7 @@ function ZoneRing({ color }) {
 
 /* ── Campus trees ──────────────────────────────────────────── */
 // Positioned along College Walk, South Field border, and campus edges
-const TREE_POSITIONS = [
+const TREE_POSITIONS_PROTO = [
   // College Walk trees (flanking the path, z≈-4)
   ...Array.from({length:9},(_, i)=>[(-40 + i*10), 0, -10]),
   ...Array.from({length:9},(_, i)=>[(-40 + i*10), 0,  2]),
@@ -822,50 +795,81 @@ const TREE_POSITIONS = [
   [-48,0,-38],[48,0,-38],[-48,0,38],[48,0,38],
 ];
 
+/* ── Helpers for one-shot instanced static meshes ──────────── */
+function IM({ mats, geo, mat, cast }) {
+  const ref = useRef();
+  useEffect(() => {
+    const m = ref.current;
+    if (!m) return;
+    mats.forEach((mx, i) => m.setMatrixAt(i, mx));
+    m.instanceMatrix.needsUpdate = true;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!mats.length) return null;
+  return <instancedMesh ref={ref} args={[geo, mat, mats.length]} castShadow={!!cast} />;
+}
+
 function CampusTrees() {
   return (
     <group>
-      {TREE_POSITIONS.map((pos, i) => {
-        const h   = 5 + (i % 4) * 1.2;
-        const mat = TREE_MATS[i % 3];
-        return (
-          <group key={i} position={pos}>
-            <mesh geometry={TRUNK_GEO} material={TRUNK_MAT} castShadow
-              position={[0, h * 0.3, 0]} />
-            <mesh geometry={CONE_LG} material={mat} castShadow
-              position={[0, h * 0.72, 0]} />
-            <mesh geometry={CONE_SM} material={mat} castShadow
-              position={[0, h * 0.94, 0]} />
-          </group>
-        );
-      })}
+      <IM mats={TREE_DATA.trunks} geo={TRUNK_GEO} mat={TRUNK_MAT} cast />
+      {TREE_MATS.map((m, mi) => (
+        <group key={mi}>
+          <IM mats={TREE_DATA.lg[mi]} geo={CONE_LG} mat={m} cast />
+          <IM mats={TREE_DATA.sm[mi]} geo={CONE_SM} mat={m} cast />
+        </group>
+      ))}
     </group>
   );
 }
 
 /* ── Lampposts ──────────────────────────────────────────────── */
-const LAMP_SPOTS = [
+const LAMP_SPOTS_PROTO = [
   // College Walk
   ...[-30,-20,-10,0,10,20,30].flatMap(x=>[[x,-8],[x,2]]),
   // Central N-S axis
   ...[-40,-25,-10,10,25,40].flatMap(z=>[[-5,z],[5,z]]),
 ];
 
+/* ── Pre-computed instanced transforms (runs once at module init) ── */
+const _d = new THREE.Object3D();
+
+const TREE_DATA = (() => {
+  const trunks = [], lg = [[], [], []], sm = [[], [], []];
+  TREE_POSITIONS_PROTO.forEach((pos, i) => {
+    const h = 5 + (i % 4) * 1.2, mat = i % 3;
+    _d.position.set(pos[0], h * 0.3,  pos[2]); _d.scale.setScalar(1); _d.updateMatrix(); trunks.push(_d.matrix.clone());
+    _d.position.set(pos[0], h * 0.72, pos[2]); _d.updateMatrix(); lg[mat].push(_d.matrix.clone());
+    _d.position.set(pos[0], h * 0.94, pos[2]); _d.updateMatrix(); sm[mat].push(_d.matrix.clone());
+  });
+  return { trunks, lg, sm };
+})();
+
+const LAMP_DATA = (() => {
+  const poles = [], globes = [];
+  LAMP_SPOTS_PROTO.forEach(([x, z]) => {
+    _d.position.set(x, 3,   z); _d.scale.setScalar(1); _d.updateMatrix(); poles.push(_d.matrix.clone());
+    _d.position.set(x, 6.3, z); _d.updateMatrix(); globes.push(_d.matrix.clone());
+  });
+  return { poles, globes };
+})();
+
+const DASH_DATA = (() => {
+  const list = [];
+  const push = (x, y, z, sx, sy) => {
+    _d.position.set(x, y, z); _d.rotation.set(-Math.PI / 2, 0, 0); _d.scale.set(sx, sy, 1); _d.updateMatrix();
+    list.push(_d.matrix.clone());
+  };
+  for (let j = 0; j < 18; j++) push(-82 + j * 10, 0.09, 72,            5,   0.3);
+  for (let j = 0; j < 16; j++) push(-68,           0.09, -75 + j * 10, 0.3, 5);
+  for (let j = 0; j < 16; j++) push( 68,           0.09, -75 + j * 10, 0.3, 5);
+  return list;
+})();
+
 function Lampposts() {
   return (
     <group>
-      {LAMP_SPOTS.map(([x,z], i) => (
-        <group key={i} position={[x, 0, z]}>
-          <mesh castShadow position={[0, 3, 0]}>
-            <cylinderGeometry args={[0.1, 0.13, 6, 6]} />
-            <meshLambertMaterial color="#4a4a5a" />
-          </mesh>
-          <mesh castShadow position={[0, 6.3, 0]}>
-            <sphereGeometry args={[0.32, 8, 8]} />
-            <meshBasicMaterial color="#fffde0" />
-          </mesh>
-        </group>
-      ))}
+      <IM mats={LAMP_DATA.poles}  geo={LAMP_POLE_GEO}  mat={LAMP_POLE_MAT} />
+      <IM mats={LAMP_DATA.globes} geo={LAMP_GLOBE_GEO} mat={LAMP_GLOBE_MAT} />
     </group>
   );
 }

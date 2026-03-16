@@ -130,7 +130,7 @@ export default function Character({ keys, onWalk, onSprintUnlock, onPositionUpda
         ref={rbRef}
         colliders={false}
         mass={1}
-        linearDamping={0.7}
+        linearDamping={0}
         angularDamping={100}
         lockRotations
         position={[0, 2, 0]}
