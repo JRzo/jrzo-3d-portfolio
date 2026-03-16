@@ -1,53 +1,116 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import Scene from './components/Scene';
 import LoadingScreen from './components/LoadingScreen';
-import ComputerOverlay from './components/ComputerOverlay';
+import Navigation from './components/ui/Navigation';
+import Panel from './components/ui/Panel';
+import AchievementStack, { notifyAchievement } from './components/ui/AchievementToast';
+import MiniMap from './components/ui/MiniMap';
+import { useAchievements } from './hooks/useAchievements';
+import { useKeyboard } from './hooks/useKeyboard';
+import { ZONES } from './components/World';
+
+// Only trigger React state update when character moves ≥ 0.5 world units.
+const POS_THRESHOLD_SQ = 0.25;
 
 export default function App() {
-  const [ready, setReady]               = useState(false);
-  const [computerMode, setComputerMode] = useState(false);
-  const [overlayVisible, setOverlay]    = useState(false);
+  const [ready,      setReady]      = useState(false);
+  const [activeZone, setActiveZone] = useState(null);
+  const [openPanel,  setOpenPanel]  = useState(null);
+  const [charPos,    setCharPos]    = useState({ x: 0, z: 0 });
 
-  function handleEnterComputer() {
-    setComputerMode(true);
-    // Overlay appears after camera zoom-in completes (~0.8s)
-    // onComputerArrived fires it precisely, but we also set a fallback timer
-  }
+  const keys = useKeyboard();
 
-  function handleComputerArrived() {
-    setOverlay(true);
-  }
+  /* Throttled position update — avoids 60fps React re-renders */
+  const lastPos = useRef({ x: 0, z: 0 });
+  const updatePos = useCallback((pos) => {
+    const dx = pos.x - lastPos.current.x;
+    const dz = pos.z - lastPos.current.z;
+    if (dx * dx + dz * dz >= POS_THRESHOLD_SQ) {
+      lastPos.current = pos;
+      setCharPos(pos);
+    }
+  }, []);
 
-  function handleCloseComputer() {
-    setOverlay(false);
-    // Small delay so the overlay fades out before camera pulls back
-    setTimeout(() => setComputerMode(false), 420);
-  }
+  /* Achievements */
+  const achievements = useAchievements(notifyAchievement);
+
+  /* Zone tracking — deduplicated */
+  const lastZone = useRef(null);
+  const onZoneChange = useCallback((zoneId) => {
+    if (zoneId === lastZone.current) return;
+    lastZone.current = zoneId;
+    setActiveZone(zoneId);
+    if (zoneId) achievements.onZoneEnter(zoneId);
+  }, [achievements]);
+
+  /* Nav icon click → toggle panel */
+  const handleNavClick = useCallback((zoneId) => {
+    setOpenPanel((prev) => (prev === zoneId ? null : zoneId));
+  }, []);
+
+  /* Keyboard shortcuts: E = enter zone, ESC = close */
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.code === 'Escape') {
+        setOpenPanel(null);
+      } else if (e.code === 'KeyE') {
+        setOpenPanel((prev) => {
+          if (prev) return null;          // E also closes the panel
+          return lastZone.current ?? null; // open current zone if near one
+        });
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  const zoneMeta = activeZone ? ZONES.find(z => z.id === activeZone) : null;
+  const showPrompt = activeZone && !openPanel;
 
   return (
     <>
-      {/* Loading gate */}
       {!ready && <LoadingScreen onLoaded={() => setReady(true)} />}
 
-      {/* 3D scene — always mounted */}
       <div style={{ width: '100vw', height: '100vh' }}>
         <Scene
-          computerMode={computerMode}
-          onEnterComputer={handleEnterComputer}
-          onComputerArrived={handleComputerArrived}
+          keys={keys}
+          onZoneChange={onZoneChange}
+          onWalk={achievements.onWalk}
+          onSprintUnlock={achievements.onSprintUnlock}
+          onPositionUpdate={updatePos}
         />
       </div>
 
-      {/* GitHub desktop overlay */}
-      {overlayVisible && <ComputerOverlay onClose={handleCloseComputer} />}
+      {ready && (
+        <>
+          <Navigation
+            activeZone={activeZone}
+            openPanel={openPanel}
+            onNavClick={handleNavClick}
+          />
 
-      {/* Hint bar (only when not in overlay) */}
-      {ready && !overlayVisible && (
-        <p className="hint-overlay">
-          DRAG to orbit &nbsp;·&nbsp; SCROLL to zoom &nbsp;·&nbsp;
-          W A S D to move character &nbsp;·&nbsp;
-          <span style={{ color: '#00f5ff' }}>CLICK any monitor</span> to enter computer
-        </p>
+          <Panel zone={openPanel} onClose={() => setOpenPanel(null)} />
+
+          {/* Zone entry prompt — appears when near a zone */}
+          <div className={`zone-prompt ${showPrompt ? 'visible' : ''}`}
+            style={zoneMeta ? { borderColor: zoneMeta.color, color: zoneMeta.color } : {}}
+            onClick={() => showPrompt && setOpenPanel(activeZone)}
+          >
+            <kbd style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 5, padding: '1px 7px', fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>E</kbd>
+            {zoneMeta && <span>Enter {zoneMeta.label}</span>}
+          </div>
+
+          <MiniMap carPos={charPos} activeZone={activeZone} />
+          <AchievementStack />
+
+          <div className="controls-hint">
+            <span><kbd>W A S D</kbd> Walk</span>
+            <span><kbd>Shift</kbd> Run</span>
+            <span><kbd>Space</kbd> Jump</span>
+            <span><kbd>E</kbd> Enter</span>
+            <span><kbd>ESC</kbd> Close</span>
+          </div>
+        </>
       )}
     </>
   );
