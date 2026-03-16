@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 
 const STEPS = [
   [350,  18, 'Compiling shaders…'],
-  [700,  36, 'Building world terrain…'],
-  [1050, 54, 'Paving roads…'],
-  [1350, 70, 'Spawning zone landmarks…'],
-  [1650, 85, 'Fetching GitHub data…'],
-  [1900, 95, 'Warming up physics engine…'],
-  [2100, 100, 'Rev your engine.'],
+  [700,  36, 'Building Columbia campus…'],
+  [1050, 54, 'Paving College Walk…'],
+  [1350, 70, 'Placing landmarks…'],
+  [1650, 85, 'Fetching GitHub repos…'],
+  [1900, 95, 'Initialising physics…'],
+  [2200, 100, 'Ready — explore campus.'],
 ];
 
 export default function LoadingScreen({ onLoaded }) {
