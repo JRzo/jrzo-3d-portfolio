@@ -44,16 +44,17 @@ const PLACEHOLDER_REPOS = [
  * Fetches the three most-recently-updated public repos for `username`.
  * Falls back to placeholder data if the API is unreachable.
  */
-export function useGitHub(username) {
+export function useGitHub(username, perPage = 6) {
   const [repos, setRepos] = useState(PLACEHOLDER_REPOS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!username || typeof username !== 'string') return;
     const controller = new AbortController();
 
     fetch(
-      `https://api.github.com/users/${username}/repos?sort=updated&per_page=3`,
+      `https://api.github.com/users/${username}/repos?sort=updated&per_page=${perPage}`,
       { signal: controller.signal }
     )
       .then((res) => {
