@@ -143,49 +143,56 @@ export default function Car({ keys, onDrive, onSpeedDemon, onPositionUpdate }) {
 function CarBody() {
   return (
     <group>
-      {/* Body */}
-      <mesh castShadow position={[0, 0.3, 0]}>
+      {/* Body — bright red like a toy car */}
+      <mesh castShadow receiveShadow position={[0, 0.3, 0]}>
         <boxGeometry args={[1.4, 0.45, 2.3]} />
-        <meshStandardMaterial color="#1a1a2e" metalness={0.8} roughness={0.2} />
+        <meshLambertMaterial color="#e63946" />
       </mesh>
 
-      {/* Cabin */}
+      {/* Cabin — darker red */}
       <mesh castShadow position={[0, 0.72, -0.1]}>
         <boxGeometry args={[1.1, 0.38, 1.3]} />
-        <meshStandardMaterial color="#0f0f1a" metalness={0.6} roughness={0.3} />
+        <meshLambertMaterial color="#c1121f" />
       </mesh>
 
-      {/* Windshield */}
+      {/* Windshield — light blue tint */}
       <mesh position={[0, 0.72, 0.56]}>
         <boxGeometry args={[1.0, 0.34, 0.05]} />
-        <meshStandardMaterial color="#00f5ff" transparent opacity={0.35} metalness={1} roughness={0} />
+        <meshLambertMaterial color="#a8d8ea" transparent opacity={0.7} />
       </mesh>
 
       {/* Rear window */}
       <mesh position={[0, 0.72, -0.76]}>
         <boxGeometry args={[1.0, 0.30, 0.05]} />
-        <meshStandardMaterial color="#00f5ff" transparent opacity={0.25} metalness={1} roughness={0} />
+        <meshLambertMaterial color="#a8d8ea" transparent opacity={0.6} />
       </mesh>
 
-      {/* Headlights */}
+      {/* Headlights — bright white/yellow */}
       {[0.45, -0.45].map((x, i) => (
-        <mesh key={i} position={[x, 0.32, 1.16]}>
-          <boxGeometry args={[0.22, 0.1, 0.04]} />
-          <meshStandardMaterial color="#ffffff" emissive="#00f5ff" emissiveIntensity={3} />
+        <mesh key={i} position={[x, 0.32, 1.17]}>
+          <boxGeometry args={[0.26, 0.14, 0.05]} />
+          <meshBasicMaterial color="#fffde0" />
         </mesh>
       ))}
-      <pointLight position={[0, 0.32, 1.3]} color="#00f5ff" intensity={5} distance={10} />
+      <pointLight position={[0, 0.5, 1.5]} color="#fffce0" intensity={6} distance={14} />
 
-      {/* Tail lights */}
+      {/* Tail lights — bright red */}
       {[0.45, -0.45].map((x, i) => (
-        <mesh key={i} position={[x, 0.32, -1.16]}>
-          <boxGeometry args={[0.22, 0.1, 0.04]} />
-          <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={2} />
+        <mesh key={i} position={[x, 0.32, -1.17]}>
+          <boxGeometry args={[0.26, 0.14, 0.05]} />
+          <meshBasicMaterial color="#ff4444" />
         </mesh>
       ))}
 
-      {/* Underglow */}
-      <pointLight position={[0, -0.1, 0]} color="#bf5fff" intensity={3} distance={3} />
+      {/* Side stripe — yellow accent */}
+      <mesh position={[0.71, 0.28, 0]}>
+        <boxGeometry args={[0.04, 0.16, 1.8]} />
+        <meshLambertMaterial color="#ffd166" />
+      </mesh>
+      <mesh position={[-0.71, 0.28, 0]}>
+        <boxGeometry args={[0.04, 0.16, 1.8]} />
+        <meshLambertMaterial color="#ffd166" />
+      </mesh>
 
       {/* Wheels */}
       {WHEEL_OFFSETS.map((w, i) => (
@@ -199,12 +206,13 @@ function Wheel({ position }) {
   return (
     <group position={position} rotation={[0, 0, Math.PI / 2]}>
       <mesh castShadow>
-        <cylinderGeometry args={[0.28, 0.28, 0.22, 12]} />
-        <meshStandardMaterial color="#111" metalness={0.3} roughness={0.8} />
+        <cylinderGeometry args={[0.28, 0.28, 0.24, 12]} />
+        <meshLambertMaterial color="#2b2b2b" />
       </mesh>
-      <mesh position={[0, 0.12, 0]}>
-        <cylinderGeometry args={[0.14, 0.14, 0.02, 8]} />
-        <meshStandardMaterial color="#888" metalness={0.9} roughness={0.1} />
+      {/* Bright yellow hub */}
+      <mesh position={[0, 0.13, 0]}>
+        <cylinderGeometry args={[0.14, 0.14, 0.04, 8]} />
+        <meshLambertMaterial color="#ffd166" />
       </mesh>
     </group>
   );
