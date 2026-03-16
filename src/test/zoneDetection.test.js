@@ -13,17 +13,25 @@ function detectZone(x, z) {
   return null;
 }
 
+// Lookup helpers
+const home     = ZONES.find(z => z.id === 'home');
+const projects = ZONES.find(z => z.id === 'projects');
+const skills   = ZONES.find(z => z.id === 'skills');
+const sports   = ZONES.find(z => z.id === 'sports');
+const contact  = ZONES.find(z => z.id === 'contact');
+
 describe('Zone detection', () => {
-  it('detects home zone at world origin', () => {
-    expect(detectZone(0, 0)).toBe('home');
+  it('detects home zone at its center', () => {
+    expect(detectZone(home.pos[0], home.pos[2])).toBe('home');
   });
 
   it('detects home zone near (but within) its radius', () => {
-    expect(detectZone(ZONE_RADIUS - 1, 0)).toBe('home');
+    expect(detectZone(home.pos[0] + ZONE_RADIUS - 1, home.pos[2])).toBe('home');
   });
 
   it('returns null outside all zones', () => {
-    expect(detectZone(20, 20)).toBeNull();
+    // Point far from any zone center
+    expect(detectZone(0, 0)).toBeNull();
   });
 
   it('detects each zone at its center', () => {
@@ -34,23 +42,23 @@ describe('Zone detection', () => {
 
   it('returns null exactly at zone boundary (outside)', () => {
     // ZONE_RADIUS away from home center — outside the zone
-    expect(detectZone(ZONE_RADIUS, 0)).toBeNull();
+    expect(detectZone(home.pos[0] + ZONE_RADIUS, home.pos[2])).toBeNull();
   });
 
-  it('detects projects zone at x=40', () => {
-    expect(detectZone(40, 0)).toBe('projects');
+  it('detects projects zone at its campus position', () => {
+    expect(detectZone(projects.pos[0], projects.pos[2])).toBe('projects');
   });
 
-  it('detects skills zone at x=-40', () => {
-    expect(detectZone(-40, 0)).toBe('skills');
+  it('detects skills zone at its campus position', () => {
+    expect(detectZone(skills.pos[0], skills.pos[2])).toBe('skills');
   });
 
-  it('detects sports zone at z=-40', () => {
-    expect(detectZone(0, -40)).toBe('sports');
+  it('detects sports zone at its campus position', () => {
+    expect(detectZone(sports.pos[0], sports.pos[2])).toBe('sports');
   });
 
-  it('detects contact zone at z=40', () => {
-    expect(detectZone(0, 40)).toBe('contact');
+  it('detects contact zone at its campus position', () => {
+    expect(detectZone(contact.pos[0], contact.pos[2])).toBe('contact');
   });
 });
 

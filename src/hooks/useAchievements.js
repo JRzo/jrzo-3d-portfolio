@@ -1,70 +1,70 @@
 import { useRef, useCallback } from 'react';
 
 export const ACHIEVEMENTS = {
-  FIRST_DRIVE: {
-    id: 'FIRST_DRIVE',
-    icon: '🚗',
-    name: 'On the Road',
-    desc: 'Started driving for the first time',
+  FIRST_STEPS: {
+    id: 'FIRST_STEPS',
+    icon: '🚶',
+    name: 'First Steps',
+    desc: 'Started exploring the campus',
   },
   VISIT_PROJECTS: {
     id: 'VISIT_PROJECTS',
     icon: '💻',
     name: 'Code Explorer',
-    desc: 'Visited the Projects zone',
+    desc: 'Visited Butler Library — Projects',
   },
   VISIT_SKILLS: {
     id: 'VISIT_SKILLS',
     icon: '⚡',
     name: 'Skill Check',
-    desc: 'Visited the Skills zone',
+    desc: 'Visited Pupin Hall — Skills',
   },
   VISIT_SPORTS: {
     id: 'VISIT_SPORTS',
     icon: '🏀',
     name: 'Game On',
-    desc: 'Visited the Sports & Culture zone',
+    desc: 'Visited Dodge Center — Sports & Culture',
   },
   VISIT_CONTACT: {
     id: 'VISIT_CONTACT',
     icon: '📡',
     name: 'Ping Sent',
-    desc: 'Visited the Contact zone',
+    desc: 'Visited Lerner Hall — Contact',
   },
   VISIT_HOME: {
     id: 'VISIT_HOME',
-    icon: '🏠',
+    icon: '🏛️',
     name: 'Home Base',
-    desc: 'Visited the Home zone',
+    desc: 'Visited Low Library — Home',
   },
   ALL_ZONES: {
     id: 'ALL_ZONES',
     icon: '🌍',
-    name: 'World Explorer',
+    name: 'Campus Tour',
     desc: 'Visited all 5 zones',
   },
-  SPEED_DEMON: {
-    id: 'SPEED_DEMON',
-    icon: '🏎️',
-    name: 'Speed Demon',
-    desc: 'Drove at full speed',
+  SPRINTER: {
+    id: 'SPRINTER',
+    icon: '💨',
+    name: 'Sprinter',
+    desc: 'Ran at full speed across campus',
   },
 };
 
 const ZONE_ACHIEVEMENTS = {
-  home: 'VISIT_HOME',
+  home:     'VISIT_HOME',
   projects: 'VISIT_PROJECTS',
-  skills: 'VISIT_SKILLS',
-  sports: 'VISIT_SPORTS',
-  contact: 'VISIT_CONTACT',
+  skills:   'VISIT_SKILLS',
+  sports:   'VISIT_SPORTS',
+  contact:  'VISIT_CONTACT',
 };
 
 const ZONE_SET = new Set(['home', 'projects', 'skills', 'sports', 'contact']);
 
 export function useAchievements(onUnlock) {
-  const unlocked = useRef(new Set());
+  const unlocked     = useRef(new Set());
   const visitedZones = useRef(new Set());
-  const hasDriven = useRef(false);
+  const hasWalked    = useRef(false);
 
   const unlock = useCallback((id) => {
     if (unlocked.current.has(id)) return;
@@ -78,23 +78,22 @@ export function useAchievements(onUnlock) {
     if (achId) unlock(achId);
 
     visitedZones.current.add(zone);
-    // Check if all zones visited
     if (ZONE_SET.size === visitedZones.current.size &&
         [...ZONE_SET].every(z => visitedZones.current.has(z))) {
       unlock('ALL_ZONES');
     }
   }, [unlock]);
 
-  const onDrive = useCallback(() => {
-    if (!hasDriven.current) {
-      hasDriven.current = true;
-      unlock('FIRST_DRIVE');
+  const onWalk = useCallback(() => {
+    if (!hasWalked.current) {
+      hasWalked.current = true;
+      unlock('FIRST_STEPS');
     }
   }, [unlock]);
 
-  const onSpeedDemon = useCallback(() => {
-    unlock('SPEED_DEMON');
+  const onSprintUnlock = useCallback(() => {
+    unlock('SPRINTER');
   }, [unlock]);
 
-  return { onZoneEnter, onDrive, onSpeedDemon };
+  return { onZoneEnter, onWalk, onSprintUnlock };
 }

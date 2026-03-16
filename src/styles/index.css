@@ -221,11 +221,15 @@ canvas { display: block; touch-action: none; }
   backdrop-filter: blur(12px);
   box-shadow: 0 0 20px rgba(0,245,255,0.2);
   opacity: 0; pointer-events: none;
-  transition: opacity 0.3s, transform 0.3s;
+  transition: opacity 0.3s, transform 0.3s, box-shadow 0.2s;
+  cursor: pointer; user-select: none;
 }
 .zone-prompt.visible {
   opacity: 1; pointer-events: auto;
   transform: translateX(-50%) translateY(0);
+}
+.zone-prompt:hover {
+  box-shadow: 0 0 32px rgba(0,245,255,0.38);
 }
 
 /* ── Scrollbar ──────────────────────────────────────────────── */

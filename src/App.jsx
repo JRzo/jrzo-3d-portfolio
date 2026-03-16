@@ -7,57 +7,65 @@ import AchievementStack, { notifyAchievement } from './components/ui/Achievement
 import MiniMap from './components/ui/MiniMap';
 import { useAchievements } from './hooks/useAchievements';
 import { useKeyboard } from './hooks/useKeyboard';
+import { ZONES } from './components/World';
 
-// Minimum squared distance the car must move before we trigger a minimap redraw.
-// This prevents React re-rendering the entire tree at 60fps.
-// 0.25 → ~0.5 world units of movement threshold.
-const POS_UPDATE_THRESHOLD_SQ = 0.25;
+// Only trigger React state update when character moves ≥ 0.5 world units.
+const POS_THRESHOLD_SQ = 0.25;
 
 export default function App() {
   const [ready,      setReady]      = useState(false);
   const [activeZone, setActiveZone] = useState(null);
   const [openPanel,  setOpenPanel]  = useState(null);
-  const [carPos,     setCarPos]     = useState({ x: 0, z: 0 });
+  const [charPos,    setCharPos]    = useState({ x: 0, z: 0 });
 
   const keys = useKeyboard();
 
-  // Throttle car position → only trigger React update when car moves ≥0.5 units.
-  // Without this, setCarPos fires at 60fps and re-renders the entire App tree.
-  const lastCarPos = useRef({ x: 0, z: 0 });
-  const updateCarPos = useCallback((pos) => {
-    const prev = lastCarPos.current;
-    const dx = pos.x - prev.x;
-    const dz = pos.z - prev.z;
-    if (dx * dx + dz * dz >= POS_UPDATE_THRESHOLD_SQ) {
-      lastCarPos.current = pos;
-      setCarPos(pos);
+  /* Throttled position update — avoids 60fps React re-renders */
+  const lastPos = useRef({ x: 0, z: 0 });
+  const updatePos = useCallback((pos) => {
+    const dx = pos.x - lastPos.current.x;
+    const dz = pos.z - lastPos.current.z;
+    if (dx * dx + dz * dz >= POS_THRESHOLD_SQ) {
+      lastPos.current = pos;
+      setCharPos(pos);
     }
   }, []);
 
-  // Achievements — uses refs internally so these callbacks are stable
+  /* Achievements */
   const achievements = useAchievements(notifyAchievement);
 
-  // Zone tracking — deduplicated so the same zone only triggers once until you leave
+  /* Zone tracking — deduplicated */
   const lastZone = useRef(null);
   const onZoneChange = useCallback((zoneId) => {
-    // zoneId may be null when car is between zones
     if (zoneId === lastZone.current) return;
     lastZone.current = zoneId;
     setActiveZone(zoneId);
     if (zoneId) achievements.onZoneEnter(zoneId);
   }, [achievements]);
 
-  // Nav icon click — toggle panel for that zone
+  /* Nav icon click → toggle panel */
   const handleNavClick = useCallback((zoneId) => {
     setOpenPanel((prev) => (prev === zoneId ? null : zoneId));
   }, []);
 
-  // ESC to close panel
+  /* Keyboard shortcuts: E = enter zone, ESC = close */
   useEffect(() => {
-    const handler = (e) => { if (e.code === 'Escape') setOpenPanel(null); };
+    const handler = (e) => {
+      if (e.code === 'Escape') {
+        setOpenPanel(null);
+      } else if (e.code === 'KeyE') {
+        setOpenPanel((prev) => {
+          if (prev) return null;          // E also closes the panel
+          return lastZone.current ?? null; // open current zone if near one
+        });
+      }
+    };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
+
+  const zoneMeta = activeZone ? ZONES.find(z => z.id === activeZone) : null;
+  const showPrompt = activeZone && !openPanel;
 
   return (
     <>
@@ -67,9 +75,9 @@ export default function App() {
         <Scene
           keys={keys}
           onZoneChange={onZoneChange}
-          onDrive={achievements.onDrive}
-          onSpeedDemon={achievements.onSpeedDemon}
-          onPositionUpdate={updateCarPos}
+          onWalk={achievements.onWalk}
+          onSprintUnlock={achievements.onSprintUnlock}
+          onPositionUpdate={updatePos}
         />
       </div>
 
@@ -80,12 +88,26 @@ export default function App() {
             openPanel={openPanel}
             onNavClick={handleNavClick}
           />
+
           <Panel zone={openPanel} onClose={() => setOpenPanel(null)} />
-          <MiniMap carPos={carPos} activeZone={activeZone} />
+
+          {/* Zone entry prompt — appears when near a zone */}
+          <div className={`zone-prompt ${showPrompt ? 'visible' : ''}`}
+            style={zoneMeta ? { borderColor: zoneMeta.color, color: zoneMeta.color } : {}}
+            onClick={() => showPrompt && setOpenPanel(activeZone)}
+          >
+            <kbd style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 5, padding: '1px 7px', fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>E</kbd>
+            {zoneMeta && <span>Enter {zoneMeta.label}</span>}
+          </div>
+
+          <MiniMap carPos={charPos} activeZone={activeZone} />
           <AchievementStack />
+
           <div className="controls-hint">
-            <span><kbd>W A S D</kbd> Drive</span>
-            <span><kbd>Click nav icon</kbd> Open zone</span>
+            <span><kbd>W A S D</kbd> Walk</span>
+            <span><kbd>Shift</kbd> Run</span>
+            <span><kbd>Space</kbd> Jump</span>
+            <span><kbd>E</kbd> Enter</span>
             <span><kbd>ESC</kbd> Close</span>
           </div>
         </>

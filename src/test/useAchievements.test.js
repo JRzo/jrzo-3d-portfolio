@@ -2,24 +2,24 @@ import { renderHook, act } from '@testing-library/react';
 import { useAchievements } from '../hooks/useAchievements';
 
 describe('useAchievements', () => {
-  it('calls onUnlock when onDrive is called for the first time', () => {
+  it('calls onUnlock when onWalk is called for the first time', () => {
     const onUnlock = vi.fn();
     const { result } = renderHook(() => useAchievements(onUnlock));
 
-    act(() => { result.current.onDrive(); });
+    act(() => { result.current.onWalk(); });
 
     expect(onUnlock).toHaveBeenCalledTimes(1);
-    expect(onUnlock.mock.calls[0][0].id).toBe('FIRST_DRIVE');
+    expect(onUnlock.mock.calls[0][0].id).toBe('FIRST_STEPS');
   });
 
-  it('does NOT fire onDrive achievement a second time', () => {
+  it('does NOT fire onWalk achievement a second time', () => {
     const onUnlock = vi.fn();
     const { result } = renderHook(() => useAchievements(onUnlock));
 
     act(() => {
-      result.current.onDrive();
-      result.current.onDrive();
-      result.current.onDrive();
+      result.current.onWalk();
+      result.current.onWalk();
+      result.current.onWalk();
     });
 
     expect(onUnlock).toHaveBeenCalledTimes(1);
@@ -72,12 +72,12 @@ describe('useAchievements', () => {
     expect(allZonesCalls).toHaveLength(0);
   });
 
-  it('unlocks SPEED_DEMON on onSpeedDemon call', () => {
+  it('unlocks SPRINTER on onSprintUnlock call', () => {
     const onUnlock = vi.fn();
     const { result } = renderHook(() => useAchievements(onUnlock));
 
-    act(() => { result.current.onSpeedDemon(); });
+    act(() => { result.current.onSprintUnlock(); });
 
-    expect(onUnlock).toHaveBeenCalledWith(expect.objectContaining({ id: 'SPEED_DEMON' }));
+    expect(onUnlock).toHaveBeenCalledWith(expect.objectContaining({ id: 'SPRINTER' }));
   });
 });

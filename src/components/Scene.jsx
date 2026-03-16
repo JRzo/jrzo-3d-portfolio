@@ -2,16 +2,16 @@ import { Suspense, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import * as THREE from 'three';
 import { Fog } from 'three';
-import Car from './Car';
+import Character from './Character';
 import World, { ZONES, ZONE_RADIUS } from './World';
 
 const ZONE_RADIUS_SQ = ZONE_RADIUS * ZONE_RADIUS;
 
-// Sky color — matches Bruno Simon warm daytime feel
-const SKY_COLOR = '#87ceeb';
+const SKY_COLOR = '#c8dff0';
 
-export default function Scene({ keys, onZoneChange, onDrive, onSpeedDemon, onPositionUpdate }) {
+export default function Scene({ keys, onZoneChange, onWalk, onSprintUnlock, onPositionUpdate }) {
   const handlePositionUpdate = useCallback((pos) => {
     onPositionUpdate?.(pos);
 
@@ -35,23 +35,21 @@ export default function Scene({ keys, onZoneChange, onDrive, onSpeedDemon, onPos
       dpr={[1, 1.5]}
       style={{ background: SKY_COLOR }}
       onCreated={({ scene }) => {
-        // Fog makes the world feel alive — distant areas fade into the sky colour
-        scene.background = new Fog(SKY_COLOR, 80, 260).color;
-        scene.fog = new Fog(SKY_COLOR, 80, 260);
+        scene.background = new THREE.Color(SKY_COLOR);
+        scene.fog = new Fog(SKY_COLOR, 90, 250);
       }}
     >
       <Suspense fallback={null}>
         <Physics gravity={[0, -20, 0]} timeStep="vary">
           <World />
-          <Car
+          <Character
             keys={keys}
-            onDrive={onDrive}
-            onSpeedDemon={onSpeedDemon}
+            onWalk={onWalk}
+            onSprintUnlock={onSprintUnlock}
             onPositionUpdate={handlePositionUpdate}
           />
         </Physics>
 
-        {/* Low bloom threshold to catch the neon emissives, but mild so day-time colors stay clean */}
         <EffectComposer>
           <Bloom
             luminanceThreshold={0.85}

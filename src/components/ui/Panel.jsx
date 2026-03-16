@@ -21,12 +21,12 @@ export default function Panel({ zone, onClose }) {
 
 function PanelHeader({ zone, onClose }) {
   const ZONE_META = {
-    home:     { label: 'Home',     color: '#00f5ff', icon: '🏠' },
-    projects: { label: 'Projects', color: '#bf5fff', icon: '💻' },
-    skills:   { label: 'Skills',   color: '#00ff88', icon: '⚡' },
-    sports:   { label: 'Sports',   color: '#ff6a00', icon: '🏀' },
-    contact:  { label: 'Contact',  color: '#ff3399', icon: '📡' },
-    controls: { label: 'Controls', color: '#58a6ff', icon: '⌨️' },
+    home:     { label: 'Low Library',    color: '#f4a261', icon: '🏛️' },
+    projects: { label: 'Butler Library', color: '#9b5de5', icon: '📚' },
+    skills:   { label: 'Pupin Hall',     color: '#06d6a0', icon: '⚡' },
+    sports:   { label: 'Dodge / Field',  color: '#ef476f', icon: '🏀' },
+    contact:  { label: 'Lerner Hall',    color: '#118ab2', icon: '📡' },
+    controls: { label: 'Controls',       color: '#58a6ff', icon: '⌨️' },
   };
   const meta = ZONE_META[zone] || { label: zone, color: '#fff', icon: '•' };
 
@@ -318,12 +318,14 @@ function ContactContent() {
 /* ── Controls ─────────────────────────────────────────────── */
 function ControlsContent() {
   const rows = [
-    { key: 'W / ↑',     desc: 'Accelerate' },
-    { key: 'S / ↓',     desc: 'Brake / Reverse' },
-    { key: 'A / ←',     desc: 'Steer left' },
-    { key: 'D / →',     desc: 'Steer right' },
-    { key: 'E or Click', desc: 'Enter zone' },
-    { key: 'ESC',        desc: 'Close panel' },
+    { key: 'W / ↑',      desc: 'Walk forward' },
+    { key: 'S / ↓',      desc: 'Walk backward' },
+    { key: 'A / ←',      desc: 'Turn left' },
+    { key: 'D / →',      desc: 'Turn right' },
+    { key: 'Shift',       desc: 'Run' },
+    { key: 'Space',       desc: 'Jump' },
+    { key: 'E or Click',  desc: 'Enter / close zone' },
+    { key: 'ESC',         desc: 'Close panel' },
   ];
   return (
     <div>
