@@ -18,6 +18,8 @@ export default function App() {
   const [activeZone,   setActiveZone]   = useState(null);
   const [openPanel,    setOpenPanel]    = useState(null);
   const [charPos,      setCharPos]      = useState({ x: 0, z: 0 });
+  const [isNight,      setIsNight]      = useState(false);
+  const [physicsOk,    setPhysicsOk]    = useState(true);
 
   const sceneReadyRef   = useRef(false);
   const loadingDoneRef  = useRef(false);
@@ -73,6 +75,8 @@ export default function App() {
           if (prev) return null;
           return lastZone.current ?? null;
         });
+      } else if (e.code === 'KeyT') {
+        setIsNight((v) => !v);
       }
     };
     window.addEventListener('keydown', handler);
@@ -108,11 +112,33 @@ export default function App() {
           onSprintUnlock={achievements.onSprintUnlock}
           onPositionUpdate={updatePos}
           onReady={onSceneReady}
+          isNight={isNight}
+          onPhysicsError={() => setPhysicsOk(false)}
         />
       </div>
 
       {ready && (
         <>
+          {!physicsOk && (
+            <div
+              style={{
+                position: 'fixed',
+                top: 18,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 10,
+                padding: '8px 14px',
+                borderRadius: 8,
+                background: 'rgba(20,20,30,0.8)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                color: '#ffb86b',
+                fontSize: 12,
+                letterSpacing: 0.4,
+              }}
+            >
+              Physics engine unavailable. Running in visual-only mode.
+            </div>
+          )}
           <Navigation
             activeZone={activeZone}
             openPanel={openPanel}
@@ -144,6 +170,7 @@ export default function App() {
             <span><kbd>Shift</kbd> Run</span>
             <span><kbd>Space</kbd> Jump</span>
             <span><kbd>E</kbd> Enter</span>
+            <span><kbd>T</kbd> Day/Night</span>
             <span><kbd>ESC</kbd> Close</span>
           </div>
         </>

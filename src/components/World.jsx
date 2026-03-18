@@ -107,7 +107,18 @@ function WindowGrid({ position, rotation = [0, 0, 0], rows, cols, w, h, gapX, ga
 /* ══════════════════════════════════════════════════════════
    WORLD ROOT
 ═══════════════════════════════════════════════════════════ */
-export default function World({ enablePhysics = true }) {
+export default function World({ enablePhysics = true, isNight = false }) {
+  useEffect(() => {
+    WINDOW_MAT.emissiveIntensity = isNight ? 0.9 : 0.35;
+    LAMP_GLOBE_MAT.emissiveIntensity = isNight ? 2.2 : 1.5;
+  }, [isNight]);
+
+  const sunIntensity = isNight ? 0.6 : 2.6;
+  const ambientIntensity = isNight ? 0.35 : 0.55;
+  const hemiIntensity = isNight ? 0.5 : 1.1;
+  const sunColor = isNight ? '#7aa1d8' : '#fff8e8';
+  const skyColor = isNight ? '#0b1424' : '#87ceeb';
+  const groundColor = isNight ? '#1c2a1f' : COL_GRASS;
   return (
     <group>
       {/* Physics ground — explicit cuboid collider (plane = 0 thickness = falls through) */}
@@ -155,8 +166,8 @@ export default function World({ enablePhysics = true }) {
       {/* Strong warm midday sun from upper southwest */}
       <directionalLight
         position={[60, 110, 50]}
-        intensity={2.6}
-        color="#fff8e8"
+        intensity={sunIntensity}
+        color={sunColor}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
@@ -168,9 +179,9 @@ export default function World({ enablePhysics = true }) {
         shadow-bias={-0.0003}
       />
       {/* Sky fill */}
-      <hemisphereLight skyColor="#87ceeb" groundColor={COL_GRASS} intensity={1.1} />
+      <hemisphereLight skyColor={skyColor} groundColor={groundColor} intensity={hemiIntensity} />
       {/* Ambient so shadow sides aren't pitch black */}
-      <ambientLight intensity={0.55} color="#fff5e0" />
+      <ambientLight intensity={ambientIntensity} color="#fff5e0" />
     </group>
   );
 }
