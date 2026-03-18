@@ -25,7 +25,10 @@ function RepoCard({ repo, index, visible }) {
 
   return (
     <div
-      onClick={() => window.open(repo.html_url, '_blank')}
+      onClick={() => {
+        const w = window.open(repo.html_url, '_blank', 'noopener,noreferrer');
+        if (w) w.opener = null;
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{

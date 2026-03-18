@@ -72,22 +72,59 @@ const DASH_GEO       = new THREE.PlaneGeometry(1, 1);
 
 const LAMP_POLE_MAT  = new THREE.MeshStandardMaterial({ color: '#4a4a5a', roughness: 0.5, metalness: 0.6 });
 const LAMP_GLOBE_MAT = new THREE.MeshStandardMaterial({ color: '#fffde0', emissive: '#fff6cc', emissiveIntensity: 1.5, roughness: 0.25, metalness: 0.0 });
+const WINDOW_MAT     = new THREE.MeshStandardMaterial({
+  color: '#9fbad0',
+  emissive: '#1a2e3f',
+  emissiveIntensity: 0.35,
+  roughness: 0.2,
+  metalness: 0.05,
+  transparent: true,
+  opacity: 0.75,
+});
 const DASH_MAT       = new THREE.MeshBasicMaterial({ color: '#ffd166' });
+
+function WindowGrid({ position, rotation = [0, 0, 0], rows, cols, w, h, gapX, gapY }) {
+  const list = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = (c - (cols - 1) / 2) * gapX;
+      const y = (r - (rows - 1) / 2) * gapY;
+      list.push([x, y, 0]);
+    }
+  }
+  return (
+    <group position={position} rotation={rotation}>
+      {list.map((p, i) => (
+        <mesh key={i} position={p}>
+          <boxGeometry args={[w, h, 0.04]} />
+          <primitive object={WINDOW_MAT} attach="material" />
+        </mesh>
+      ))}
+    </group>
+  );
+}
 
 /* ══════════════════════════════════════════════════════════
    WORLD ROOT
 ═══════════════════════════════════════════════════════════ */
-export default function World() {
+export default function World({ enablePhysics = true }) {
   return (
     <group>
       {/* Physics ground — explicit cuboid collider (plane = 0 thickness = falls through) */}
-      <RigidBody type="fixed" colliders={false}>
-        <CuboidCollider args={[150, 0.5, 150]} position={[0, -0.55, 0]} />
+      {enablePhysics ? (
+        <RigidBody type="fixed" colliders={false}>
+          <CuboidCollider args={[150, 0.5, 150]} position={[0, -0.55, 0]} />
+          <mesh receiveShadow rotation={ROT90}>
+            <planeGeometry args={[400, 400]} />
+            <meshStandardMaterial color={COL_GRASS} roughness={0.9} metalness={0.0} />
+          </mesh>
+        </RigidBody>
+      ) : (
         <mesh receiveShadow rotation={ROT90}>
           <planeGeometry args={[400, 400]} />
           <meshStandardMaterial color={COL_GRASS} roughness={0.9} metalness={0.0} />
         </mesh>
-      </RigidBody>
+      )}
 
       {/* Campus ground zones (quads, paths) */}
       <CampusGround />
@@ -96,7 +133,7 @@ export default function World() {
       <Roads />
 
       {/* Invisible walls */}
-      <Borders />
+      {enablePhysics && <Borders />}
 
       {/* Zone buildings */}
       <LowLibrary    position={ZONES[0].pos} />
@@ -241,6 +278,16 @@ function LowLibrary({ position }) {
         <boxGeometry args={[24, 10, 18]} />
         <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
+      {/* Window grid */}
+      <WindowGrid
+        position={[0, 5.3, 8.6]}
+        rows={3}
+        cols={6}
+        w={1.4}
+        h={1.1}
+        gapX={3.2}
+        gapY={2.4}
+      />
 
       {/* Columns across the front face (8 columns) */}
       {Array.from({ length: 8 }, (_, i) => (
@@ -259,6 +306,11 @@ function LowLibrary({ position }) {
       <mesh castShadow position={[0, 13.5, 8]} rotation={[0, Math.PI / 4, 0]}>
         <coneGeometry args={[12.5, 4, 4]} />
         <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
+      </mesh>
+      {/* Roof ledge */}
+      <mesh castShadow position={[0, 10.7, -1]}>
+        <boxGeometry args={[24.8, 0.6, 18.8]} />
+        <meshStandardMaterial color={COL_STONE_DARK} roughness={0.75} metalness={0.05} />
       </mesh>
 
       {/* Drum (cylinder below dome) */}
@@ -326,6 +378,16 @@ function ButlerLibrary({ position }) {
         <boxGeometry args={[42, 14, 20]} />
         <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
+      {/* Window grid (front facade) */}
+      <WindowGrid
+        position={[0, 7.4, -9.6]}
+        rows={3}
+        cols={10}
+        w={1.2}
+        h={1.0}
+        gapX={3.6}
+        gapY={2.6}
+      />
 
       {/* Darker base band */}
       <mesh castShadow receiveShadow position={[0, 1.2, 0]}>
@@ -352,6 +414,11 @@ function ButlerLibrary({ position }) {
       <mesh castShadow position={[0, 15.4, 0]}>
         <boxGeometry args={[43, 0.8, 21]} />
         <meshStandardMaterial color={COL_STONE_DARK} roughness={0.75} metalness={0.05} />
+      </mesh>
+      {/* Upper cornice band */}
+      <mesh castShadow position={[0, 13.8, 0]}>
+        <boxGeometry args={[43.6, 0.5, 21.6]} />
+        <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
 
       {/* "BUTLER LIBRARY" name band (bright panel) */}
@@ -393,6 +460,16 @@ function PupinHall({ position }) {
         <boxGeometry args={[20, 22, 16]} />
         <meshStandardMaterial color={COL_BRICK} roughness={0.82} metalness={0.03} />
       </mesh>
+      {/* Tall window bands */}
+      <WindowGrid
+        position={[0, 11.5, 8.2]}
+        rows={5}
+        cols={4}
+        w={1.1}
+        h={1.4}
+        gapX={3.6}
+        gapY={3.2}
+      />
 
       {/* Stone window surrounds (horizontal bands every 3 floors) */}
       {[3, 7, 11, 15, 19].map((y, i) => (
@@ -401,6 +478,11 @@ function PupinHall({ position }) {
           <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
         </mesh>
       ))}
+      {/* Roof cap */}
+      <mesh castShadow position={[0, 22.2, 0]}>
+        <boxGeometry args={[20.8, 0.6, 16.6]} />
+        <meshStandardMaterial color={COL_BRICK_DARK} roughness={0.86} metalness={0.03} />
+      </mesh>
 
       {/* Window columns (vertical stone pilasters) */}
       {[-8, -4, 0, 4, 8].map((x, i) => (
@@ -655,6 +737,17 @@ function LernerHall({ position }) {
         <boxGeometry args={[22, 12, 16]} />
         <meshStandardMaterial color={COL_BRICK} roughness={0.82} metalness={0.03} />
       </mesh>
+      {/* Side windows */}
+      <WindowGrid
+        position={[11.2, 6.5, 0]}
+        rotation={[0, Math.PI / 2, 0]}
+        rows={3}
+        cols={3}
+        w={1.1}
+        h={1.1}
+        gapX={3.0}
+        gapY={2.4}
+      />
       {/* Stone base */}
       <mesh castShadow receiveShadow position={[0, 1, 0]}>
         <boxGeometry args={[22.5, 2, 16.5]} />
