@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useGitHub } from '../hooks/useGitHub';
 
 const LANG_COLORS = {
   JavaScript:'#f1e05a', TypeScript:'#3178c6', Python:'#3572A5',
@@ -97,24 +98,17 @@ function RepoCard({ repo, index, visible }) {
 
 // ── Main overlay ──────────────────────────────────────────────────
 export default function ComputerOverlay({ onClose }) {
-  const [repos, setRepos]     = useState([]);
-  const [loading, setLoading] = useState(true);
   const [visible, setVisible] = useState(false);
   const [filter, setFilter]   = useState('');
   const [activeTab, setActiveTab] = useState('repos');
+  const { repos, loading } = useGitHub('JRzo', 9);
+  const repoCount = repos.length;
+  const langList = [...new Set(repos.map((r) => r.language).filter(Boolean))];
 
   // Fade in after mount
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 30);
     return () => clearTimeout(t);
-  }, []);
-
-  // Fetch repos (up to 9 for the full desktop view)
-  useEffect(() => {
-    fetch('https://api.github.com/users/JRzo/repos?sort=updated&per_page=9')
-      .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setRepos(data); setLoading(false); })
-      .catch(() => setLoading(false));
   }, []);
 
   // ESC to close
@@ -251,8 +245,8 @@ export default function ComputerOverlay({ onClose }) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '28px' }}>
               {[
                 { label: 'Repositories', val: repos.length + '+' },
-                { label: 'Total Stars', val: repos.reduce((a, r) => a + r.stargazers_count, 0) },
-                { label: 'Languages', val: [...new Set(repos.map((r) => r.language).filter(Boolean))].length },
+                { label: 'Total Stars', val: repos.reduce((a, r) => a + (r.stargazers_count ?? 0), 0) },
+                { label: 'Languages', val: langList.length },
               ].map(({ label, val }) => (
                 <div key={label} style={{
                   background: '#161b22', border: '1px solid #30363d', borderRadius: '8px',
@@ -267,9 +261,9 @@ export default function ComputerOverlay({ onClose }) {
             {/* Language breakdown */}
             <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', padding: '20px' }}>
               <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '14px', color: '#e6edf3' }}>Top Languages</div>
-              {[...new Set(repos.map((r) => r.language).filter(Boolean))].map((lang) => {
+              {langList.map((lang) => {
                 const count = repos.filter((r) => r.language === lang).length;
-                const pct   = Math.round((count / repos.length) * 100);
+                const pct   = Math.round((count / (repoCount || 1)) * 100);
                 return (
                   <div key={lang} style={{ marginBottom: '10px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { fetchGitHubRepos } from '../utils/githubCache';
 
 // Shown immediately while fetch is in-flight
 const PLACEHOLDER_REPOS = [
   {
     id: 1,
     name: 'fetching-repos',
-    description: 'Reaching out to GitHub API…',
+    description: 'Reaching out to GitHub API...',
     language: 'Python',
     stargazers_count: 0,
     forks_count: 0,
@@ -17,7 +18,7 @@ const PLACEHOLDER_REPOS = [
   {
     id: 2,
     name: 'loading-data',
-    description: 'Pulling your latest repositories…',
+    description: 'Pulling your latest repositories...',
     language: 'JavaScript',
     stargazers_count: 0,
     forks_count: 0,
@@ -29,7 +30,7 @@ const PLACEHOLDER_REPOS = [
   {
     id: 3,
     name: 'please-wait',
-    description: 'Almost there — rendering scene…',
+    description: 'Almost there - rendering scene...',
     language: 'TypeScript',
     stargazers_count: 0,
     forks_count: 0,
@@ -41,7 +42,7 @@ const PLACEHOLDER_REPOS = [
 ];
 
 /**
- * Fetches the three most-recently-updated public repos for `username`.
+ * Fetches the most-recently-updated public repos for `username`.
  * Falls back to placeholder data if the API is unreachable.
  */
 export function useGitHub(username, perPage = 6) {
@@ -52,30 +53,22 @@ export function useGitHub(username, perPage = 6) {
   useEffect(() => {
     if (!username || typeof username !== 'string') return;
     const controller = new AbortController();
-
-    fetch(
-      `https://api.github.com/users/${username}/repos?sort=updated&per_page=${perPage}`,
-      { signal: controller.signal }
-    )
-      .then((res) => {
-        if (!res.ok) throw new Error(`GitHub API responded with ${res.status}`);
-        return res.json();
-      })
+    setLoading(true);
+    setError(null);
+    fetchGitHubRepos(username, perPage, { signal: controller.signal })
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setRepos(data);
-        }
+        if (Array.isArray(data) && data.length > 0) setRepos(data);
         setLoading(false);
       })
       .catch((err) => {
         if (err.name === 'AbortError') return;
-        console.warn('[useGitHub] fetch failed — using placeholder data.', err.message);
+        console.warn('[useGitHub] fetch failed - using placeholder data.', err.message);
         setError(err);
         setLoading(false);
       });
 
     return () => controller.abort();
-  }, [username]);
+  }, [username, perPage]);
 
   return { repos, loading, error };
 }
