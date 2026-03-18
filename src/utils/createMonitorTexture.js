@@ -1,6 +1,6 @@
-import { CanvasTexture } from 'three';
+import { CanvasTexture, SRGBColorSpace } from 'three';
 
-// Language → colour mapping (GitHub style)
+// Language → color mapping (GitHub style)
 const LANG_COLORS = {
   JavaScript: '#f1e05a',
   TypeScript: '#3178c6',
@@ -67,7 +67,7 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 4) {
 /**
  * Generates a 1024×768 CanvasTexture styled like a GitHub repo card.
  * @param {object|null} repo  - GitHub repo object (or null / placeholder)
- * @param {number}      index - 0-based monitor index (affects accent colour)
+ * @param {number}      index - 0-based monitor index (affects accent color)
  */
 export function createMonitorTexture(repo, index = 0) {
   const W = 1024, H = 768;
@@ -76,7 +76,7 @@ export function createMonitorTexture(repo, index = 0) {
   canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  // Accent colours per monitor
+  // Accent colors per monitor
   const ACCENTS = ['#00f5ff', '#bf5fff', '#ff3399'];
   const accent = ACCENTS[index % ACCENTS.length];
 
@@ -129,8 +129,8 @@ export function createMonitorTexture(repo, index = 0) {
   ctx.fillStyle = accent;
   ctx.shadowColor = accent;
   ctx.shadowBlur = 14;
-  ctx.font = `bold ${repoName.length > 22 ? 36 : 44}px "Courier New", monospace`;
-  const displayName = repoName.length > 28 ? repoName.slice(0, 28) + '…' : repoName;
+  ctx.font = `bold ${repoName.length > 22 -> 36 : 44}px "Courier New", monospace`;
+  const displayName = repoName.length > 28 -> repoName.slice(0, 28) + '…' : repoName;
   ctx.fillText(displayName, 30, 132);
   ctx.shadowBlur = 0;
 
@@ -147,7 +147,7 @@ export function createMonitorTexture(repo, index = 0) {
   ctx.stroke();
 
   // ── Language badge ──────────────────────────────────
-  const lang = repo?.language ?? '···';
+  const lang = repo?.language ?? '...';
   const langColor = getLangColor(lang);
   roundRect(ctx, 30, 160, lang.length * 13 + 42, 34, 6);
   ctx.fillStyle = '#21262d';
@@ -165,9 +165,9 @@ export function createMonitorTexture(repo, index = 0) {
 
   // ── Stats row ───────────────────────────────────────
   const stats = [
-    { emoji: '★', val: repo?.stargazers_count ?? 0, label: 'stars' },
-    { emoji: '⑂', val: repo?.forks_count ?? 0,       label: 'forks' },
-    { emoji: '●', val: repo?.open_issues_count ?? 0,  label: 'issues' },
+    { emoji: '*', val: repo?.stargazers_count ?? 0, label: 'stars' },
+    { emoji: '+', val: repo?.forks_count ?? 0,       label: 'forks' },
+    { emoji: 'o', val: repo?.open_issues_count ?? 0,  label: 'issues' },
   ];
   stats.forEach(({ emoji, val, label }, i) => {
     const sx = 30 + i * 195;
@@ -239,5 +239,7 @@ export function createMonitorTexture(repo, index = 0) {
   ctx.font = '13px "Courier New", monospace';
   ctx.fillText(`// monitor[${index}]`, W - 165, H - 12);
 
-  return new CanvasTexture(canvas);
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  return tex;
 }
