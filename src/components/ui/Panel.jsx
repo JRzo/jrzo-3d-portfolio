@@ -229,7 +229,7 @@ function SkillBar({ name, pct, color }) {
 function SportsContent() {
   return (
     <div>
-      <SectionTitle color="#ff6a00">Favourites</SectionTitle>
+      <SectionTitle color="#ff6a00">Favorites</SectionTitle>
 
       <SportCard icon="🏀" sport="NBA" detail="New York Knicks" color="#ff6a00" />
       <SportCard icon="⚾" sport="Baseball" detail="New York Yankees" color="#1e40af" />

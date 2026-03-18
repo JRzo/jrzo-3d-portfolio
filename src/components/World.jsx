@@ -20,8 +20,9 @@
 
 import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import * as THREE from 'three';
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { createDominicanFlagTexture } from '../utils/createPosterTexture';
 
 /* ── Zone definitions ─────────────────────────────────────── */
 export const ZONES = [
@@ -50,21 +51,15 @@ const COL_SKY         = '#87ceeb';
 const ROT90 = new THREE.Euler(-Math.PI / 2, 0, 0);
 
 /* ── Reusable geometry / material (module-level) ─────────────*/
-const PATH_MAT    = new THREE.MeshLambertMaterial({ color: COL_PATH });
-const ROAD_MAT    = new THREE.MeshLambertMaterial({ color: COL_ROAD });
-const GRASS_MAT   = new THREE.MeshLambertMaterial({ color: COL_GRASS });
-const QUAD_MAT    = new THREE.MeshLambertMaterial({ color: COL_QUAD });
-const STONE_MAT   = new THREE.MeshLambertMaterial({ color: COL_STONE });
-const STONE_D_MAT = new THREE.MeshLambertMaterial({ color: COL_STONE_DARK });
-const BRICK_MAT   = new THREE.MeshLambertMaterial({ color: COL_BRICK });
-const BRICK_D_MAT = new THREE.MeshLambertMaterial({ color: COL_BRICK_DARK });
-const DOME_MAT    = new THREE.MeshLambertMaterial({ color: COL_DOME });
-const ROOF_MAT    = new THREE.MeshLambertMaterial({ color: COL_ROOF });
-const TRUNK_MAT   = new THREE.MeshLambertMaterial({ color: '#5c3d1a' });
+const PATH_MAT    = new THREE.MeshStandardMaterial({ color: COL_PATH, roughness: 0.8, metalness: 0.05 });
+const ROAD_MAT    = new THREE.MeshStandardMaterial({ color: COL_ROAD, roughness: 0.85, metalness: 0.06 });
+const GRASS_MAT   = new THREE.MeshStandardMaterial({ color: COL_GRASS, roughness: 0.9, metalness: 0.0 });
+const QUAD_MAT    = new THREE.MeshStandardMaterial({ color: COL_QUAD, roughness: 0.9, metalness: 0.0 });
+const TRUNK_MAT   = new THREE.MeshStandardMaterial({ color: '#5c3d1a', roughness: 0.85, metalness: 0.0 });
 const TREE_MATS   = [
-  new THREE.MeshLambertMaterial({ color: '#2d6a30' }),
-  new THREE.MeshLambertMaterial({ color: '#3a7a35' }),
-  new THREE.MeshLambertMaterial({ color: '#254f28' }),
+  new THREE.MeshStandardMaterial({ color: '#2d6a30', roughness: 0.9, metalness: 0.0 }),
+  new THREE.MeshStandardMaterial({ color: '#3a7a35', roughness: 0.9, metalness: 0.0 }),
+  new THREE.MeshStandardMaterial({ color: '#254f28', roughness: 0.9, metalness: 0.0 }),
 ];
 
 // Shared geometries
@@ -75,8 +70,8 @@ const LAMP_POLE_GEO  = new THREE.CylinderGeometry(0.1, 0.13, 6, 6);
 const LAMP_GLOBE_GEO = new THREE.SphereGeometry(0.32, 8, 8);
 const DASH_GEO       = new THREE.PlaneGeometry(1, 1);
 
-const LAMP_POLE_MAT  = new THREE.MeshLambertMaterial({ color: '#4a4a5a' });
-const LAMP_GLOBE_MAT = new THREE.MeshBasicMaterial({ color: '#fffde0' });
+const LAMP_POLE_MAT  = new THREE.MeshStandardMaterial({ color: '#4a4a5a', roughness: 0.5, metalness: 0.6 });
+const LAMP_GLOBE_MAT = new THREE.MeshStandardMaterial({ color: '#fffde0', emissive: '#fff6cc', emissiveIntensity: 1.5, roughness: 0.25, metalness: 0.0 });
 const DASH_MAT       = new THREE.MeshBasicMaterial({ color: '#ffd166' });
 
 /* ══════════════════════════════════════════════════════════
@@ -90,7 +85,7 @@ export default function World() {
         <CuboidCollider args={[150, 0.5, 150]} position={[0, -0.55, 0]} />
         <mesh receiveShadow rotation={ROT90}>
           <planeGeometry args={[400, 400]} />
-          <meshLambertMaterial color={COL_GRASS} />
+          <meshStandardMaterial color={COL_GRASS} roughness={0.9} metalness={0.0} />
         </mesh>
       </RigidBody>
 
@@ -150,39 +145,39 @@ function CampusGround() {
       {/* Main campus platform (slightly raised above grass) */}
       <mesh receiveShadow rotation={ROT90} position={[0, 0.01, 0]}>
         <planeGeometry args={[160, 160]} />
-        <meshLambertMaterial color="#c2b49c" />
+        <meshStandardMaterial color="#c2b49c" roughness={0.75} metalness={0.05} />
       </mesh>
 
       {/* South Field quad — the large grass rectangle */}
       <mesh receiveShadow rotation={ROT90} position={[0, 0.04, 20]}>
         <planeGeometry args={[60, 60]} />
-        <meshLambertMaterial color={COL_QUAD} />
+        <meshStandardMaterial color={COL_QUAD} roughness={0.9} metalness={0.0} />
       </mesh>
 
       {/* North quad around Low Library */}
       <mesh receiveShadow rotation={ROT90} position={[0, 0.04, -22]}>
         <planeGeometry args={[50, 30]} />
-        <meshLambertMaterial color={COL_QUAD} />
+        <meshStandardMaterial color={COL_QUAD} roughness={0.9} metalness={0.0} />
       </mesh>
 
       {/* College Walk stone surface */}
       <mesh receiveShadow rotation={ROT90} position={[0, 0.05, -4]}>
         <planeGeometry args={[130, 18]} />
-        <meshLambertMaterial color="#d4c8b0" />
+        <meshStandardMaterial color="#d4c8b0" roughness={0.75} metalness={0.05} />
       </mesh>
 
       {/* Diagonal paths from Low steps to College Walk */}
       {[-14, 14].map((x, i) => (
         <mesh key={i} receiveShadow rotation={ROT90} position={[x * 0.5, 0.06, -10]}>
           <planeGeometry args={[5, 20]} />
-          <meshLambertMaterial color="#c8bca8" />
+          <meshStandardMaterial color="#c8bca8" roughness={0.75} metalness={0.05} />
         </mesh>
       ))}
 
       {/* Central N-S axis path */}
       <mesh receiveShadow rotation={ROT90} position={[0, 0.06, 20]}>
         <planeGeometry args={[8, 85]} />
-        <meshLambertMaterial color="#c8bca8" />
+        <meshStandardMaterial color="#c8bca8" roughness={0.75} metalness={0.05} />
       </mesh>
     </group>
   );
@@ -229,7 +224,7 @@ function LowLibrary({ position }) {
       {/* Wide stone base / podium */}
       <mesh castShadow receiveShadow position={[0, 0.5, 0]}>
         <boxGeometry args={[28, 1, 22]} />
-        <meshLambertMaterial color={COL_STONE_DARK} />
+        <meshStandardMaterial color={COL_STONE_DARK} roughness={0.75} metalness={0.05} />
       </mesh>
 
       {/* Step cascade (3 tiers) */}
@@ -237,14 +232,14 @@ function LowLibrary({ position }) {
         <mesh key={i} castShadow receiveShadow
           position={[0, i * 0.4 + 0.2, 9 - i * 1.5]}>
           <boxGeometry args={[26 - i * 2, 0.4, 3.5]} />
-          <meshLambertMaterial color={COL_STONE} />
+          <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
         </mesh>
       ))}
 
       {/* Main building body */}
       <mesh castShadow receiveShadow position={[0, 5, -1]}>
         <boxGeometry args={[24, 10, 18]} />
-        <meshLambertMaterial color={COL_STONE} />
+        <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
 
       {/* Columns across the front face (8 columns) */}
@@ -252,46 +247,46 @@ function LowLibrary({ position }) {
         <mesh key={i} castShadow
           position={[-12 + i * 3.44, 5.5, 8.1]}>
           <cylinderGeometry args={[0.42, 0.5, 10, 10]} />
-          <meshLambertMaterial color="#e0d4bc" />
+          <meshStandardMaterial color="#e0d4bc" roughness={0.6} metalness={0.05} />
         </mesh>
       ))}
 
       {/* Pediment / triangular gable */}
       <mesh castShadow position={[0, 11.5, 8]}>
         <boxGeometry args={[24, 0.5, 1.5]} />
-        <meshLambertMaterial color={COL_STONE} />
+        <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
       <mesh castShadow position={[0, 13.5, 8]} rotation={[0, Math.PI / 4, 0]}>
         <coneGeometry args={[12.5, 4, 4]} />
-        <meshLambertMaterial color={COL_STONE} />
+        <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
 
       {/* Drum (cylinder below dome) */}
       <mesh castShadow position={[0, 14, -2]}>
         <cylinderGeometry args={[6, 6.5, 5, 16]} />
-        <meshLambertMaterial color={COL_STONE} />
+        <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
 
       {/* THE DOME — iconic verdigris green */}
       <mesh castShadow position={[0, 18, -2]}>
         <sphereGeometry args={[6.2, 24, 12, 0, Math.PI * 2, 0, Math.PI / 1.9]} />
-        <meshLambertMaterial color={COL_DOME} />
+        <meshStandardMaterial color={COL_DOME} roughness={0.35} metalness={0.2} />
       </mesh>
 
       {/* Lantern on dome */}
       <mesh castShadow position={[0, 23.5, -2]}>
         <cylinderGeometry args={[1.1, 1.3, 2.5, 12]} />
-        <meshLambertMaterial color={COL_STONE} />
+        <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
       <mesh castShadow position={[0, 25.5, -2]}>
         <sphereGeometry args={[1.1, 10, 10, 0, Math.PI * 2, 0, Math.PI / 1.8]} />
-        <meshLambertMaterial color={COL_DOME} />
+        <meshStandardMaterial color={COL_DOME} roughness={0.35} metalness={0.2} />
       </mesh>
 
       {/* Columbia "C" flag pole */}
       <mesh castShadow position={[11, 5, 8.5]}>
         <cylinderGeometry args={[0.1, 0.1, 8, 6]} />
-        <meshLambertMaterial color="#aaaaaa" />
+        <meshStandardMaterial color="#aaaaaa" roughness={0.3} metalness={0.7} />
       </mesh>
       <mesh position={[12.4, 8, 8.5]}>
         <planeGeometry args={[2.6, 1.4]} />
@@ -322,20 +317,20 @@ function ButlerLibrary({ position }) {
         <mesh key={i} castShadow receiveShadow
           position={[0, i * 0.35 + 0.18, -12.5 + i * 1.4]}>
           <boxGeometry args={[44 - i * 2, 0.35, 4]} />
-          <meshLambertMaterial color={COL_STONE} />
+          <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
         </mesh>
       ))}
 
       {/* Main body */}
       <mesh castShadow receiveShadow position={[0, 7, 0]}>
         <boxGeometry args={[42, 14, 20]} />
-        <meshLambertMaterial color={COL_STONE} />
+        <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
 
       {/* Darker base band */}
       <mesh castShadow receiveShadow position={[0, 1.2, 0]}>
         <boxGeometry args={[42.5, 2.4, 20.5]} />
-        <meshLambertMaterial color={COL_STONE_DARK} />
+        <meshStandardMaterial color={COL_STONE_DARK} roughness={0.75} metalness={0.05} />
       </mesh>
 
       {/* 12 columns across front facade */}
@@ -343,20 +338,20 @@ function ButlerLibrary({ position }) {
         <mesh key={i} castShadow
           position={[-22 + i * 4, 7, -10.1]}>
           <cylinderGeometry args={[0.48, 0.56, 13.5, 10]} />
-          <meshLambertMaterial color="#ddd0b8" />
+          <meshStandardMaterial color="#ddd0b8" roughness={0.6} metalness={0.05} />
         </mesh>
       ))}
 
       {/* Entablature (horizontal band above columns) */}
       <mesh castShadow position={[0, 14.8, -10]}>
         <boxGeometry args={[43, 1.2, 1.5]} />
-        <meshLambertMaterial color={COL_STONE} />
+        <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
 
       {/* Parapet / flat roof top */}
       <mesh castShadow position={[0, 15.4, 0]}>
         <boxGeometry args={[43, 0.8, 21]} />
-        <meshLambertMaterial color={COL_STONE_DARK} />
+        <meshStandardMaterial color={COL_STONE_DARK} roughness={0.75} metalness={0.05} />
       </mesh>
 
       {/* "BUTLER LIBRARY" name band (bright panel) */}
@@ -369,7 +364,7 @@ function ButlerLibrary({ position }) {
       {[-22, 22].map((x, i) => (
         <mesh key={i} castShadow receiveShadow position={[x, 5.5, 3]}>
           <boxGeometry args={[3, 11, 8]} />
-          <meshLambertMaterial color={COL_STONE_DARK} />
+          <meshStandardMaterial color={COL_STONE_DARK} roughness={0.75} metalness={0.05} />
         </mesh>
       ))}
 
@@ -390,20 +385,20 @@ function PupinHall({ position }) {
       {/* Wide base/podium */}
       <mesh castShadow receiveShadow position={[0, 1, 0]}>
         <boxGeometry args={[24, 2, 18]} />
-        <meshLambertMaterial color={COL_STONE} />
+        <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
 
       {/* Main brick tower */}
       <mesh castShadow receiveShadow position={[0, 11, 0]}>
         <boxGeometry args={[20, 22, 16]} />
-        <meshLambertMaterial color={COL_BRICK} />
+        <meshStandardMaterial color={COL_BRICK} roughness={0.82} metalness={0.03} />
       </mesh>
 
       {/* Stone window surrounds (horizontal bands every 3 floors) */}
       {[3, 7, 11, 15, 19].map((y, i) => (
         <mesh key={i} castShadow position={[0, y, -8.1]}>
           <boxGeometry args={[20, 0.5, 0.2]} />
-          <meshLambertMaterial color={COL_STONE} />
+          <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
         </mesh>
       ))}
 
@@ -411,7 +406,7 @@ function PupinHall({ position }) {
       {[-8, -4, 0, 4, 8].map((x, i) => (
         <mesh key={i} castShadow position={[x, 11, -8.08]}>
           <boxGeometry args={[0.6, 22, 0.15]} />
-          <meshLambertMaterial color={COL_STONE_DARK} />
+          <meshStandardMaterial color={COL_STONE_DARK} roughness={0.75} metalness={0.05} />
         </mesh>
       ))}
 
@@ -428,22 +423,22 @@ function PupinHall({ position }) {
       {/* Tower top / cornice */}
       <mesh castShadow position={[0, 22.8, 0]}>
         <boxGeometry args={[21, 1.2, 17]} />
-        <meshLambertMaterial color={COL_STONE} />
+        <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
       {/* Setback upper section */}
       <mesh castShadow position={[0, 28, 0]}>
         <boxGeometry args={[14, 10, 12]} />
-        <meshLambertMaterial color={COL_BRICK_DARK} />
+        <meshStandardMaterial color={COL_BRICK_DARK} roughness={0.86} metalness={0.03} />
       </mesh>
       <mesh castShadow position={[0, 33.5, 0]}>
         <boxGeometry args={[14.5, 0.8, 12.5]} />
-        <meshLambertMaterial color={COL_STONE} />
+        <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
 
       {/* Antenna / flagpole */}
       <mesh castShadow position={[0, 37, 0]}>
         <cylinderGeometry args={[0.12, 0.12, 5, 6]} />
-        <meshLambertMaterial color="#aaaaaa" />
+        <meshStandardMaterial color="#aaaaaa" roughness={0.3} metalness={0.7} />
       </mesh>
       <mesh position={[0, 39.8, 0]}>
         <sphereGeometry args={[0.25, 8, 8]} />
@@ -482,26 +477,26 @@ function DodgeCenter({ position }) {
       {/* Main Dodge building */}
       <mesh castShadow receiveShadow position={[0, 5, 0]}>
         <boxGeometry args={[28, 10, 20]} />
-        <meshLambertMaterial color={COL_BRICK} />
+        <meshStandardMaterial color={COL_BRICK} roughness={0.82} metalness={0.03} />
       </mesh>
       {/* Stone base band */}
       <mesh castShadow receiveShadow position={[0, 1, 0]}>
         <boxGeometry args={[28.5, 2, 20.5]} />
-        <meshLambertMaterial color={COL_STONE_DARK} />
+        <meshStandardMaterial color={COL_STONE_DARK} roughness={0.75} metalness={0.05} />
       </mesh>
       {/* Entry arch */}
       <mesh castShadow position={[0, 5, -10.1]}>
         <boxGeometry args={[6, 8, 0.5]} />
-        <meshLambertMaterial color={COL_STONE} />
+        <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
       <mesh castShadow position={[0, 9.5, -10.1]}>
         <cylinderGeometry args={[3, 3, 0.5, 16, 1, false, 0, Math.PI]} />
-        <meshLambertMaterial color={COL_STONE} />
+        <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
       {/* Roof parapet */}
       <mesh castShadow position={[0, 10.8, 0]}>
         <boxGeometry args={[29, 1.2, 21]} />
-        <meshLambertMaterial color={COL_STONE_DARK} />
+        <meshStandardMaterial color={COL_STONE_DARK} roughness={0.75} metalness={0.05} />
       </mesh>
 
       {/* Outdoor basketball court on east side */}
@@ -509,12 +504,12 @@ function DodgeCenter({ position }) {
         {/* Court surface */}
         <mesh receiveShadow rotation={ROT90} position={[0, 0.04, 0]}>
           <planeGeometry args={[26, 18]} />
-          <meshLambertMaterial color="#c8792a" />
+          <meshStandardMaterial color="#c8792a" roughness={0.55} metalness={0.02} />
         </mesh>
         {/* Court border */}
         <mesh receiveShadow rotation={ROT90} position={[0, 0.03, 0]}>
           <planeGeometry args={[28, 20]} />
-          <meshLambertMaterial color="#8a5214" />
+          <meshStandardMaterial color="#8a5214" roughness={0.6} metalness={0.02} />
         </mesh>
         {/* Center circle */}
         <mesh rotation={ROT90} position={[0, 0.06, 0]}>
@@ -531,11 +526,11 @@ function DodgeCenter({ position }) {
           <group key={i} position={[x, 0, 0]}>
             <mesh castShadow position={[0, 3.5, 0]}>
               <cylinderGeometry args={[0.14, 0.16, 7, 8]} />
-              <meshLambertMaterial color="#888888" />
+              <meshStandardMaterial color="#888888" roughness={0.3} metalness={0.6} />
             </mesh>
             <mesh castShadow position={[i === 0 ? 0.9 : -0.9, 6, 0]}>
               <boxGeometry args={[0.12, 2, 3]} />
-              <meshLambertMaterial color="#d8e8ff" />
+              <meshStandardMaterial color="#d8e8ff" roughness={0.3} metalness={0.05} />
             </mesh>
             <mesh position={[i === 0 ? 1.6 : -1.6, 5, 0]}
               rotation={[Math.PI / 2, 0, 0]}>
@@ -549,7 +544,7 @@ function DodgeCenter({ position }) {
           <group key={i} position={[x,0,z]}>
             <mesh castShadow position={[0,6,0]}>
               <cylinderGeometry args={[0.15,0.2,12,6]} />
-              <meshLambertMaterial color="#777777" />
+              <meshStandardMaterial color="#777777" roughness={0.35} metalness={0.6} />
             </mesh>
             <mesh position={[0,12.6,0]}>
               <boxGeometry args={[2,0.5,0.8]} />
@@ -564,27 +559,27 @@ function DodgeCenter({ position }) {
       <group position={[-16, 0, -8]}>
         <mesh castShadow position={[0, 6, 0]}>
           <cylinderGeometry args={[0.12, 0.15, 12, 6]} />
-          <meshLambertMaterial color="#aaaaaa" />
+          <meshStandardMaterial color="#aaaaaa" roughness={0.3} metalness={0.7} />
         </mesh>
         {/* DR Flag */}
-        <DominicanFlag y={10.5} />
+        <WavingFlag y={10.5} />
       </group>
 
       {/* Baseball corner */}
       <group position={[-18, 0, 14]}>
         <mesh receiveShadow rotation={ROT90} position={[0, 0.04, 0]}>
           <planeGeometry args={[12, 12]} />
-          <meshLambertMaterial color="#c8a96e" />
+          <meshStandardMaterial color="#c8a96e" roughness={0.6} metalness={0.02} />
         </mesh>
         {[[0,5],[5,0],[0,-5],[-5,0]].map(([bx,bz],i)=>(
           <mesh key={i} castShadow position={[bx,0.15,bz]}>
             <boxGeometry args={[0.7,0.2,0.7]} />
-            <meshLambertMaterial color="#ffffff" />
+            <meshStandardMaterial color="#ffffff" roughness={0.2} metalness={0.0} />
           </mesh>
         ))}
         <mesh castShadow position={[0,0.2,0]}>
           <cylinderGeometry args={[0.9,1.1,0.4,10]} />
-          <meshLambertMaterial color="#b89060" />
+          <meshStandardMaterial color="#b89060" roughness={0.7} metalness={0.02} />
         </mesh>
       </group>
 
@@ -594,37 +589,47 @@ function DodgeCenter({ position }) {
   );
 }
 
-function DominicanFlag({ y = 0 }) {
+function WavingFlag({ y = 0 }) {
+  const meshRef = useRef();
+  const baseRef = useRef();
+  const texture = useMemo(() => createDominicanFlagTexture(), []);
+  const FLAG_W = 2.4;
+  const FLAG_H = 1.6;
+
+  useEffect(() => {
+    const geo = meshRef.current?.geometry;
+    if (!geo) return;
+    baseRef.current = geo.attributes.position.array.slice();
+  }, []);
+
+  useFrame(({ clock }) => {
+    const geo = meshRef.current?.geometry;
+    const base = baseRef.current;
+    if (!geo || !base) return;
+    const pos = geo.attributes.position;
+    const t = clock.elapsedTime;
+    for (let i = 0; i < pos.count; i++) {
+      const idx = i * 3;
+      const x = base[idx];
+      const yv = base[idx + 1];
+      const k = (x + FLAG_W / 2) / FLAG_W; // 0 at pole edge, 1 at free edge
+      const wave = Math.sin(t * 2 + x * 2.2 + yv * 1.3) * 0.06 * (0.2 + 0.8 * k);
+      pos.array[idx + 2] = base[idx + 2] + wave;
+    }
+    pos.needsUpdate = true;
+    geo.computeVertexNormals();
+  });
+
   return (
     <group position={[0, y, 0]}>
-      {/* Blue top-left */}
-      <mesh position={[-0.55, 0.4, 0.06]}>
-        <planeGeometry args={[1.1, 0.8]} />
-        <meshBasicMaterial color="#002d62" side={THREE.DoubleSide} />
-      </mesh>
-      {/* Blue bottom-right */}
-      <mesh position={[0.55, -0.4, 0.06]}>
-        <planeGeometry args={[1.1, 0.8]} />
-        <meshBasicMaterial color="#002d62" side={THREE.DoubleSide} />
-      </mesh>
-      {/* Red top-right */}
-      <mesh position={[0.55, 0.4, 0.06]}>
-        <planeGeometry args={[1.1, 0.8]} />
-        <meshBasicMaterial color="#ce1126" side={THREE.DoubleSide} />
-      </mesh>
-      {/* Red bottom-left */}
-      <mesh position={[-0.55, -0.4, 0.06]}>
-        <planeGeometry args={[1.1, 0.8]} />
-        <meshBasicMaterial color="#ce1126" side={THREE.DoubleSide} />
-      </mesh>
-      {/* White cross */}
-      <mesh position={[0, 0, 0.08]}>
-        <planeGeometry args={[0.22, 1.62]} />
-        <meshBasicMaterial color="#ffffff" side={THREE.DoubleSide} />
-      </mesh>
-      <mesh position={[0, 0, 0.09]}>
-        <planeGeometry args={[2.22, 0.22]} />
-        <meshBasicMaterial color="#ffffff" side={THREE.DoubleSide} />
+      <mesh ref={meshRef} position={[FLAG_W / 2, 0, 0]} rotation={[0, Math.PI / 2, 0]} castShadow>
+        <planeGeometry args={[FLAG_W, FLAG_H, 20, 10]} />
+        <meshStandardMaterial
+          map={texture}
+          side={THREE.DoubleSide}
+          roughness={0.55}
+          metalness={0.02}
+        />
       </mesh>
     </group>
   );
@@ -648,48 +653,48 @@ function LernerHall({ position }) {
       {/* Main brick body */}
       <mesh castShadow receiveShadow position={[0, 6, 0]}>
         <boxGeometry args={[22, 12, 16]} />
-        <meshLambertMaterial color={COL_BRICK} />
+        <meshStandardMaterial color={COL_BRICK} roughness={0.82} metalness={0.03} />
       </mesh>
       {/* Stone base */}
       <mesh castShadow receiveShadow position={[0, 1, 0]}>
         <boxGeometry args={[22.5, 2, 16.5]} />
-        <meshLambertMaterial color={COL_STONE_DARK} />
+        <meshStandardMaterial color={COL_STONE_DARK} roughness={0.75} metalness={0.05} />
       </mesh>
 
       {/* Glass atrium facade — large window panels */}
       {Array.from({ length: 4 }, (_, i) => (
         <mesh key={i} position={[0, 3 + i * 2.5, -8.05]}>
           <boxGeometry args={[18, 2, 0.18]} />
-          <meshLambertMaterial color="#a8d8ea" transparent opacity={0.65} />
+          <meshStandardMaterial color="#a8d8ea" transparent opacity={0.65} roughness={0.15} metalness={0.05} />
         </mesh>
       ))}
       {/* Vertical glass dividers */}
       {[-7,-3.5,0,3.5,7].map((x,i)=>(
         <mesh key={i} position={[x, 6, -8.04]}>
           <boxGeometry args={[0.3, 10, 0.1]} />
-          <meshLambertMaterial color="#5ba4cf" />
+          <meshStandardMaterial color="#5ba4cf" roughness={0.5} metalness={0.1} />
         </mesh>
       ))}
 
       {/* Setback upper floor */}
       <mesh castShadow position={[0, 14, -2]}>
         <boxGeometry args={[16, 3, 12]} />
-        <meshLambertMaterial color={COL_BRICK_DARK} />
+        <meshStandardMaterial color={COL_BRICK_DARK} roughness={0.86} metalness={0.03} />
       </mesh>
       <mesh castShadow position={[0, 13.2, -2]}>
         <boxGeometry args={[17, 0.8, 13]} />
-        <meshLambertMaterial color={COL_STONE} />
+        <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
       </mesh>
 
       {/* Comm dish on roof */}
       <mesh castShadow position={[4, 17, -1]}>
         <cylinderGeometry args={[0.2, 0.25, 4, 8]} />
-        <meshLambertMaterial color="#888" />
+        <meshStandardMaterial color="#888" roughness={0.35} metalness={0.6} />
       </mesh>
       <group position={[4, 20, -1]}>
         <mesh castShadow rotation={[Math.PI / 3.5, 0, 0]}>
           <sphereGeometry args={[2.2, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2.2]} />
-          <meshLambertMaterial color="#1a5f8a" side={THREE.DoubleSide} />
+          <meshStandardMaterial color="#1a5f8a" side={THREE.DoubleSide} roughness={0.35} metalness={0.2} />
         </mesh>
         <mesh position={[0, 1, 0]}>
           <sphereGeometry args={[0.25, 8, 8]} />
@@ -735,23 +740,23 @@ function SideCampus() {
         <group key={i} position={b.pos}>
           <mesh castShadow receiveShadow position={[0, b.h / 2, 0]}>
             <boxGeometry args={[b.w, b.h, b.d]} />
-            <meshLambertMaterial color={b.color} />
+            <meshStandardMaterial color={b.color} roughness={0.8} metalness={0.03} />
           </mesh>
           {/* Roof/parapet cap */}
           <mesh castShadow position={[0, b.h + 0.5, 0]}>
             <boxGeometry args={[b.w + 0.4, 0.8, b.d + 0.4]} />
-            <meshLambertMaterial color={b.roof} />
+            <meshStandardMaterial color={b.roof} roughness={0.7} metalness={0.08} />
           </mesh>
           {/* Stone base */}
           <mesh castShadow receiveShadow position={[0, 0.7, 0]}>
             <boxGeometry args={[b.w + 0.4, 1.4, b.d + 0.4]} />
-            <meshLambertMaterial color={COL_STONE_DARK} />
+            <meshStandardMaterial color={COL_STONE_DARK} roughness={0.75} metalness={0.05} />
           </mesh>
           {/* Entry columns (2) */}
           {[-2, 2].map((x, j) => (
             <mesh key={j} castShadow position={[x, b.h * 0.4, -b.d / 2 - 0.1]}>
               <cylinderGeometry args={[0.3, 0.36, b.h * 0.8, 8]} />
-              <meshLambertMaterial color={COL_STONE} />
+              <meshStandardMaterial color={COL_STONE} roughness={0.7} metalness={0.05} />
             </mesh>
           ))}
         </group>
