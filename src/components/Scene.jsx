@@ -1,10 +1,11 @@
-import { Suspense, useCallback, useRef } from 'react';
+import React, { Suspense, useCallback, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import * as THREE from 'three';
 import { Fog } from 'three';
 import Character from './Character';
 import World, { ZONES, ZONE_RADIUS } from './World';
+import { StaticCharacter } from './Character';
 
 const ZONE_RADIUS_SQ = ZONE_RADIUS * ZONE_RADIUS;
 const SKY_COLOR = '#c8dff0';
@@ -19,6 +20,25 @@ function ReadySignal({ onReady }) {
   return null;
 }
 
+class SceneErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(err) {
+    // eslint-disable-next-line no-console
+    console.error('[Scene] Runtime error:', err);
+    this.props.onError?.(err);
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback ?? null;
+    return this.props.children;
+  }
+}
+
 export default function Scene({ keys, onZoneChange, onWalk, onSprintUnlock, onPositionUpdate, onReady }) {
   const handlePositionUpdate = useCallback((pos) => {
     onPositionUpdate?.(pos);
@@ -30,6 +50,8 @@ export default function Scene({ keys, onZoneChange, onWalk, onSprintUnlock, onPo
     }
     onZoneChange?.(activeZone);
   }, [onPositionUpdate, onZoneChange]);
+
+  const [physicsFailed, setPhysicsFailed] = useState(false);
 
   return (
     <Canvas
@@ -43,18 +65,35 @@ export default function Scene({ keys, onZoneChange, onWalk, onSprintUnlock, onPo
         scene.fog = new Fog(SKY_COLOR, 80, 220);
       }}
     >
-      <Suspense fallback={null}>
-        <Physics gravity={[0, -20, 0]} timeStep="vary">
-          <ReadySignal onReady={onReady} />
-          <World />
-          <Character
-            keys={keys}
-            onWalk={onWalk}
-            onSprintUnlock={onSprintUnlock}
-            onPositionUpdate={handlePositionUpdate}
-          />
-        </Physics>
-      </Suspense>
+      <ReadySignal onReady={onReady} />
+      <SceneErrorBoundary
+        onError={() => setPhysicsFailed(true)}
+        fallback={(
+          <>
+            <World enablePhysics={false} />
+            <StaticCharacter />
+          </>
+        )}
+      >
+        <Suspense fallback={null}>
+          {physicsFailed ? (
+            <>
+              <World enablePhysics={false} />
+              <StaticCharacter />
+            </>
+          ) : (
+            <Physics gravity={[0, -20, 0]} timeStep="vary">
+              <World />
+              <Character
+                keys={keys}
+                onWalk={onWalk}
+                onSprintUnlock={onSprintUnlock}
+                onPositionUpdate={handlePositionUpdate}
+              />
+            </Physics>
+          )}
+        </Suspense>
+      </SceneErrorBoundary>
     </Canvas>
   );
 }

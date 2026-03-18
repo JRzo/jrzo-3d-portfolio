@@ -79,6 +79,18 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  // Fail-open if the scene never reports ready (prevents infinite loading screen)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!ready && loadingDoneRef.current) {
+        // eslint-disable-next-line no-console
+        console.warn('Scene ready timeout: continuing to render UI.');
+        setReady(true);
+      }
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [ready]);
+
   const zoneMeta   = activeZone ? ZONES.find(z => z.id === activeZone) : null;
   const showPrompt = activeZone && !openPanel;
 

@@ -26,6 +26,16 @@ const _lookTarget = new THREE.Vector3();
 const _euler      = new THREE.Euler();
 const _quat       = new THREE.Quaternion();
 
+const MAT_SKIN    = new THREE.MeshStandardMaterial({ color: '#c6865a', roughness: 0.45, metalness: 0.0 });
+const MAT_HAIR    = new THREE.MeshStandardMaterial({ color: '#100707', roughness: 0.7, metalness: 0.05 });
+const MAT_HOODIE  = new THREE.MeshStandardMaterial({ color: '#1a2238', roughness: 0.8, metalness: 0.05 });
+const MAT_TRIM    = new THREE.MeshStandardMaterial({ color: '#00f5ff', emissive: '#00f5ff', emissiveIntensity: 0.6, roughness: 0.4, metalness: 0.1 });
+const MAT_PANTS   = new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.85, metalness: 0.05 });
+const MAT_SHOES   = new THREE.MeshStandardMaterial({ color: '#121214', roughness: 0.6, metalness: 0.1 });
+const MAT_SOLE    = new THREE.MeshStandardMaterial({ color: '#e5e7eb', roughness: 0.4, metalness: 0.0 });
+const MAT_GLASS   = new THREE.MeshStandardMaterial({ color: '#1f2937', roughness: 0.2, metalness: 0.3 });
+const MAT_METAL   = new THREE.MeshStandardMaterial({ color: '#4b5563', roughness: 0.3, metalness: 0.8 });
+
 export default function Character({ keys, onWalk, onSprintUnlock, onPositionUpdate }) {
   const rbRef      = useRef();
   const groupRef   = useRef();
@@ -146,6 +156,26 @@ export default function Character({ keys, onWalk, onSprintUnlock, onPositionUpda
   );
 }
 
+export function StaticCharacter() {
+  const walkTime = useRef(0);
+  const speed = useRef(0.2);
+  const rootRef = useRef();
+  const { camera } = useThree();
+
+  useFrame((_, delta) => {
+    walkTime.current += delta * 0.5;
+    if (rootRef.current) rootRef.current.position.y = Math.sin(walkTime.current) * 0.02;
+    camera.position.set(0, 8, 16);
+    camera.lookAt(0, 1.5, 0);
+  });
+
+  return (
+    <group ref={rootRef} position={[0, 0, 0]}>
+      <CharacterMesh walkTime={walkTime} speed={speed} />
+    </group>
+  );
+}
+
 /* ── Animated character mesh ─────────────────────────────── */
 function CharacterMesh({ walkTime, speed }) {
   const rootRef     = useRef();
@@ -186,17 +216,27 @@ function CharacterMesh({ walkTime, speed }) {
         {/* Face */}
         <mesh castShadow>
           <boxGeometry args={[0.35, 0.36, 0.35]} />
-          <meshLambertMaterial color="#c9845c" />
+          <primitive object={MAT_SKIN} attach="material" />
         </mesh>
         {/* Hair cap */}
         <mesh castShadow position={[0, 0.19, -0.02]}>
           <boxGeometry args={[0.36, 0.12, 0.32]} />
-          <meshLambertMaterial color="#0d0604" />
+          <primitive object={MAT_HAIR} attach="material" />
         </mesh>
         {/* Hair front fade */}
         <mesh position={[0, 0.18, 0.14]}>
           <boxGeometry args={[0.26, 0.08, 0.1]} />
-          <meshLambertMaterial color="#180d0a" />
+          <primitive object={MAT_HAIR} attach="material" />
+        </mesh>
+        {/* Short beard */}
+        <mesh position={[0, -0.05, 0.16]}>
+          <boxGeometry args={[0.22, 0.12, 0.05]} />
+          <primitive object={MAT_HAIR} attach="material" />
+        </mesh>
+        {/* Glasses */}
+        <mesh position={[0, 0.03, 0.19]}>
+          <boxGeometry args={[0.26, 0.06, 0.02]} />
+          <primitive object={MAT_GLASS} attach="material" />
         </mesh>
         {/* Eyes */}
         <mesh position={[-0.088, 0.04, 0.178]}>
@@ -216,33 +256,56 @@ function CharacterMesh({ walkTime, speed }) {
           <boxGeometry args={[0.018, 0.018, 0.01]} />
           <meshBasicMaterial color="#fff" />
         </mesh>
+        {/* Headphones */}
+        <mesh position={[0.2, 0.03, 0]}>
+          <cylinderGeometry args={[0.05, 0.05, 0.06, 10]} />
+          <primitive object={MAT_METAL} attach="material" />
+        </mesh>
+        <mesh position={[-0.2, 0.03, 0]}>
+          <cylinderGeometry args={[0.05, 0.05, 0.06, 10]} />
+          <primitive object={MAT_METAL} attach="material" />
+        </mesh>
+        <mesh position={[0, 0.15, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <torusGeometry args={[0.2, 0.02, 8, 18, Math.PI]} />
+          <primitive object={MAT_METAL} attach="material" />
+        </mesh>
       </group>
 
       {/* ── NECK ─────────────────────────────────────── */}
       <mesh position={[0, 1.39, 0]} castShadow>
         <cylinderGeometry args={[0.088, 0.1, 0.13, 7]} />
-        <meshLambertMaterial color="#c9845c" />
+        <primitive object={MAT_SKIN} attach="material" />
       </mesh>
 
       {/* ── TORSO ────────────────────────────────────── */}
       <mesh position={[0, 0.98, 0]} castShadow>
         <boxGeometry args={[0.48, 0.65, 0.27]} />
-        <meshLambertMaterial color="#1a1a2e" />
+        <primitive object={MAT_HOODIE} attach="material" />
       </mesh>
       {/* Cyan jacket zip line */}
       <mesh position={[0, 1.0, 0.138]}>
         <boxGeometry args={[0.055, 0.52, 0.01]} />
-        <meshBasicMaterial color="#00f5ff" />
+        <primitive object={MAT_TRIM} attach="material" />
       </mesh>
       {/* Left shoulder trim */}
       <mesh position={[0.248, 1.27, 0]}>
         <boxGeometry args={[0.01, 0.046, 0.28]} />
-        <meshBasicMaterial color="#bf5fff" />
+        <primitive object={MAT_TRIM} attach="material" />
       </mesh>
       {/* Right shoulder trim */}
       <mesh position={[-0.248, 1.27, 0]}>
         <boxGeometry args={[0.01, 0.046, 0.28]} />
-        <meshBasicMaterial color="#bf5fff" />
+        <primitive object={MAT_TRIM} attach="material" />
+      </mesh>
+      {/* Hood */}
+      <mesh position={[0, 1.22, -0.12]}>
+        <sphereGeometry args={[0.26, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.6]} />
+        <primitive object={MAT_HOODIE} attach="material" />
+      </mesh>
+      {/* Backpack */}
+      <mesh position={[0, 0.98, -0.18]} castShadow>
+        <boxGeometry args={[0.34, 0.46, 0.18]} />
+        <primitive object={MAT_PANTS} attach="material" />
       </mesh>
 
       {/* ── LEFT ARM ─────────────────────────────────── */}
@@ -250,17 +313,17 @@ function CharacterMesh({ walkTime, speed }) {
         {/* Upper arm */}
         <mesh castShadow position={[0.07, -0.18, 0]}>
           <boxGeometry args={[0.145, 0.37, 0.165]} />
-          <meshLambertMaterial color="#111122" />
+          <primitive object={MAT_HOODIE} attach="material" />
         </mesh>
         {/* Forearm */}
         <mesh castShadow position={[0.06, -0.48, 0]}>
           <boxGeometry args={[0.118, 0.27, 0.135]} />
-          <meshLambertMaterial color="#1a1a2e" />
+          <primitive object={MAT_HOODIE} attach="material" />
         </mesh>
         {/* Hand */}
         <mesh castShadow position={[0.05, -0.65, 0]}>
           <boxGeometry args={[0.115, 0.12, 0.115]} />
-          <meshLambertMaterial color="#c9845c" />
+          <primitive object={MAT_SKIN} attach="material" />
         </mesh>
       </group>
 
@@ -268,22 +331,22 @@ function CharacterMesh({ walkTime, speed }) {
       <group ref={rightArmRef} position={[-0.315, 1.26, 0]}>
         <mesh castShadow position={[-0.07, -0.18, 0]}>
           <boxGeometry args={[0.145, 0.37, 0.165]} />
-          <meshLambertMaterial color="#111122" />
+          <primitive object={MAT_HOODIE} attach="material" />
         </mesh>
         <mesh castShadow position={[-0.06, -0.48, 0]}>
           <boxGeometry args={[0.118, 0.27, 0.135]} />
-          <meshLambertMaterial color="#1a1a2e" />
+          <primitive object={MAT_HOODIE} attach="material" />
         </mesh>
         <mesh castShadow position={[-0.05, -0.65, 0]}>
           <boxGeometry args={[0.115, 0.12, 0.115]} />
-          <meshLambertMaterial color="#c9845c" />
+          <primitive object={MAT_SKIN} attach="material" />
         </mesh>
       </group>
 
       {/* ── HIPS ─────────────────────────────────────── */}
       <mesh position={[0, 0.62, 0]} castShadow>
         <boxGeometry args={[0.44, 0.2, 0.26]} />
-        <meshLambertMaterial color="#0a0a1a" />
+        <primitive object={MAT_PANTS} attach="material" />
       </mesh>
 
       {/* ── LEFT LEG ─────────────────────────────────── */}
@@ -291,22 +354,22 @@ function CharacterMesh({ walkTime, speed }) {
         {/* Thigh */}
         <mesh castShadow position={[0, -0.19, 0]}>
           <boxGeometry args={[0.185, 0.39, 0.2]} />
-          <meshLambertMaterial color="#1a1a2e" />
+          <primitive object={MAT_HOODIE} attach="material" />
         </mesh>
         {/* Shin */}
         <mesh castShadow position={[0, -0.5, 0.01]}>
           <boxGeometry args={[0.155, 0.28, 0.175]} />
-          <meshLambertMaterial color="#13132a" />
+          <primitive object={MAT_PANTS} attach="material" />
         </mesh>
         {/* Shoe */}
         <mesh castShadow position={[0.01, -0.7, 0.05]}>
           <boxGeometry args={[0.165, 0.115, 0.27]} />
-          <meshLambertMaterial color="#111" />
+          <primitive object={MAT_SHOES} attach="material" />
         </mesh>
         {/* Sole */}
         <mesh position={[0.01, -0.762, 0.05]}>
           <boxGeometry args={[0.17, 0.035, 0.275]} />
-          <meshBasicMaterial color="#1e1e1e" />
+          <primitive object={MAT_SOLE} attach="material" />
         </mesh>
       </group>
 
@@ -314,19 +377,19 @@ function CharacterMesh({ walkTime, speed }) {
       <group ref={rightLegRef} position={[-0.135, 0.54, 0]}>
         <mesh castShadow position={[0, -0.19, 0]}>
           <boxGeometry args={[0.185, 0.39, 0.2]} />
-          <meshLambertMaterial color="#1a1a2e" />
+          <primitive object={MAT_HOODIE} attach="material" />
         </mesh>
         <mesh castShadow position={[0, -0.5, 0.01]}>
           <boxGeometry args={[0.155, 0.28, 0.175]} />
-          <meshLambertMaterial color="#13132a" />
+          <primitive object={MAT_PANTS} attach="material" />
         </mesh>
         <mesh castShadow position={[-0.01, -0.7, 0.05]}>
           <boxGeometry args={[0.165, 0.115, 0.27]} />
-          <meshLambertMaterial color="#111" />
+          <primitive object={MAT_SHOES} attach="material" />
         </mesh>
         <mesh position={[-0.01, -0.762, 0.05]}>
           <boxGeometry args={[0.17, 0.035, 0.275]} />
-          <meshBasicMaterial color="#1e1e1e" />
+          <primitive object={MAT_SOLE} attach="material" />
         </mesh>
       </group>
 

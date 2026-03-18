@@ -203,7 +203,10 @@ export default function Terminal() {
 
           {/* ── LinkedIn CTA ── */}
           <button
-            onClick={() => window.open(PROFILE.linkedIn, '_blank')}
+            onClick={() => {
+              const w = window.open(PROFILE.linkedIn, '_blank', 'noopener,noreferrer');
+              if (w) w.opener = null;
+            }}
             style={{
               width: '100%',
               background: 'linear-gradient(135deg, rgba(0,119,181,0.28), rgba(0,119,181,0.1))',
