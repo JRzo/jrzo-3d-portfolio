@@ -1,4 +1,4 @@
-import { CanvasTexture } from 'three';
+import { CanvasTexture, SRGBColorSpace } from 'three';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper utils
@@ -490,7 +490,9 @@ export function createDominicanFlagTexture() {
   ctx.textAlign = 'center';
   ctx.fillText('REPÚBLICA DOMINICANA', cx, H - 8);
 
-  return new CanvasTexture(canvas);
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  return tex;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -511,5 +513,7 @@ export function createPosterTexture(type) {
     default:         drawNBAPoster(ctx, W, H);
   }
 
-  return new CanvasTexture(canvas);
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  return tex;
 }

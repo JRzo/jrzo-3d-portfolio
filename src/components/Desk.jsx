@@ -4,7 +4,7 @@ export const DESK_POS = [0, 0, -3.3];
 
 /**
  * Modern high-end developer desk:
- *  - Motorised standing-desk frame (visible brackets)
+ *  - Motorized standing-desk frame (visible brackets)
  *  - Ultra-wide curved centre monitor
  *  - Two side monitors on arms
  *  - Full-tower RGB PC with glass panel
